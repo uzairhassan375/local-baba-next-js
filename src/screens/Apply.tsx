@@ -121,10 +121,10 @@ export default function ApplyPage() {
 
     if (form.password !== form.confirmPassword) e.confirmPassword = "Passwords do not match";
 
-    if (!form.name.trim()) e.name = "Name is required";
-    if (!form.whatsapp.trim()) e.whatsapp = "WhatsApp number is required";
+    if (!form.name.trim()) e.name = "Full Name is required";
+    if (!form.whatsapp.trim()) e.whatsapp = "WhatsApp Number is required";
     if (!form.city) e.city = "City is required";
-    if (!form.businessName.trim()) e.businessName = "Business name is required";
+    if (!form.businessName.trim()) e.businessName = "Business / Shop Name is required";
     if (form.sellsWhat.length === 0) e.sellsWhat = "Select at least one";
     if (form.sellsWhere.length === 0) e.sellsWhere = "Select at least one";
     if (!form.monthlyVolume) e.monthlyVolume = "Select your volume";
@@ -200,13 +200,13 @@ export default function ApplyPage() {
                     {errors.password && <p className="text-danger text-xs mt-1">{errors.password}</p>}
                   </div>
                   <div>
-                    <label className="text-sm font-medium block mb-1">Confirm password *</label>
+                    <label className="text-sm font-medium block mb-1">Confirm Password *</label>
                     <input
                       value={form.confirmPassword}
                       onChange={e => update("confirmPassword", e.target.value)}
                       type="password"
                       autoComplete="new-password"
-                      placeholder="Repeat password"
+                      placeholder="Repeat Password"
                       className={`w-full h-11 px-3 rounded-lg border ${errors.confirmPassword ? "border-danger" : "border-border"} bg-card focus:border-primary focus:outline-none transition-colors`}
                     />
                     {errors.confirmPassword && <p className="text-danger text-xs mt-1">{errors.confirmPassword}</p>}
@@ -214,9 +214,9 @@ export default function ApplyPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <p className="text-sm font-heading font-semibold text-muted-foreground">About you</p>
+                  <p className="text-sm font-heading font-semibold text-muted-foreground">About You</p>
                   <div>
-                    <label className="text-sm font-medium block mb-1">Full name *</label>
+                    <label className="text-sm font-medium block mb-1">Full Name *</label>
                     <input
                       value={form.name}
                       onChange={e => update("name", e.target.value)}
@@ -226,7 +226,7 @@ export default function ApplyPage() {
                     {errors.name && <p className="text-danger text-xs mt-1">{errors.name}</p>}
                   </div>
                   <div>
-                    <label className="text-sm font-medium block mb-1">WhatsApp number *</label>
+                    <label className="text-sm font-medium block mb-1">WhatsApp Number *</label>
                     <div className="flex">
                       <span className="h-11 px-3 flex items-center text-sm bg-muted border border-r-0 border-border rounded-l-lg text-muted-foreground">
                         +92
@@ -248,7 +248,7 @@ export default function ApplyPage() {
                       onChange={e => update("city", e.target.value)}
                       className={`w-full h-11 px-3 rounded-lg border ${errors.city ? "border-danger" : "border-border"} bg-card focus:border-primary focus:outline-none`}
                     >
-                      <option value="">Select city</option>
+                      <option value="">Select City</option>
                       {cities.map(c => (
                         <option key={c} value={c}>
                           {c}
@@ -260,9 +260,9 @@ export default function ApplyPage() {
                 </div>
 
                 <div className="border-t border-border pt-6 space-y-4">
-                  <p className="text-sm font-heading font-semibold text-muted-foreground">Your business</p>
+                  <p className="text-sm font-heading font-semibold text-muted-foreground">Your Business</p>
                   <div>
-                    <label className="text-sm font-medium block mb-1">Business / shop name *</label>
+                    <label className="text-sm font-medium block mb-1">Business / Shop Name *</label>
                     <input
                       value={form.businessName}
                       onChange={e => update("businessName", e.target.value)}
@@ -272,7 +272,7 @@ export default function ApplyPage() {
                     {errors.businessName && <p className="text-danger text-xs mt-1">{errors.businessName}</p>}
                   </div>
                   <div>
-                    <label className="text-sm font-medium block mb-1">What do you sell? *</label>
+                    <label className="text-sm font-medium block mb-1">What Do You Sell? *</label>
                     <div className="flex flex-wrap gap-2">
                       {sellOptions.map(opt => (
                         <button
@@ -292,7 +292,7 @@ export default function ApplyPage() {
                     {errors.sellsWhat && <p className="text-danger text-xs mt-1">{errors.sellsWhat}</p>}
                   </div>
                   <div>
-                    <label className="text-sm font-medium block mb-1">Where do you sell? *</label>
+                    <label className="text-sm font-medium block mb-1">Where Do You Sell? *</label>
                     <div className="flex flex-wrap gap-2">
                       {whereOptions.map(opt => (
                         <button
@@ -312,7 +312,7 @@ export default function ApplyPage() {
                     {errors.sellsWhere && <p className="text-danger text-xs mt-1">{errors.sellsWhere}</p>}
                   </div>
                   <div>
-                    <label className="text-sm font-medium block mb-1">Estimated monthly order volume *</label>
+                    <label className="text-sm font-medium block mb-1">Estimated Monthly Order Volume *</label>
                     <div className="grid grid-cols-2 gap-2">
                       {volumeOptions.map(opt => (
                         <button
@@ -332,7 +332,7 @@ export default function ApplyPage() {
                     {errors.monthlyVolume && <p className="text-danger text-xs mt-1">{errors.monthlyVolume}</p>}
                   </div>
                   <div>
-                    <label className="text-sm font-medium block mb-1">How did you hear about us?</label>
+                    <label className="text-sm font-medium block mb-1">How Did You Hear About Us?</label>
                     <select
                       value={form.heardFrom}
                       onChange={e => update("heardFrom", e.target.value)}

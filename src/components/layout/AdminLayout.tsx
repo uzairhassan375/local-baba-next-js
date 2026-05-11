@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Users, Package, ShoppingCart, UserCheck, MessageSquare, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Package, ShoppingCart, UserCheck, MessageSquare, LogOut, Table2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
@@ -8,6 +8,7 @@ const adminLinks = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Applications", href: "/admin/applications", icon: UserCheck },
   { label: "Products", href: "/admin/products", icon: Package },
+  { label: "Bulk price & MOQ", href: "/admin/products/bulk", icon: Table2 },
   { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
   { label: "Members", href: "/admin/members", icon: Users },
   { label: "Announcements", href: "/admin/blasts", icon: MessageSquare },
@@ -28,7 +29,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </div>
         <div className="flex-1 py-4">
           {adminLinks.map(l => {
-            const active = pathname === l.href;
+            const active =
+              l.href === "/admin/products"
+                ? pathname === "/admin/products"
+                : l.href === "/admin/products/bulk"
+                  ? pathname === "/admin/products/bulk"
+                  : pathname === l.href;
             return (
               <Link
                 key={l.href}

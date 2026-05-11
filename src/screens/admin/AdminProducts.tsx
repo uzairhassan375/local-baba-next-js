@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, X, ImagePlus, ChevronUp, ChevronDown, Star } from "lucide-react";
+import { Plus, Pencil, Trash2, X, ImagePlus, ChevronUp, ChevronDown, Star, FileSpreadsheet } from "lucide-react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { ProductMedia } from "@/components/ProductMedia";
 import type { Product } from "@/data/mockData";
@@ -30,6 +30,7 @@ import {
   productToPayload,
   slugify,
 } from "@/lib/supabase/productsApi";
+import { encodeCsv } from "@/lib/csv/simple";
 
 const PRODUCT_CATEGORIES = ["Fashion", "Electronics", "Home", "Beauty", "Kids"];
 const TAG_OPTIONS: Product["tags"][number][] = ["new", "hot", "featured", "low_stock"];
@@ -113,6 +114,7 @@ export default function AdminProductsPage() {
   const [imageUrlDraft, setImageUrlDraft] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
 
   const pendingPreviewUrls = useMemo(() => pendingFiles.map(f => URL.createObjectURL(f)), [pendingFiles]);
   useEffect(() => {
@@ -135,6 +137,56 @@ export default function AdminProductsPage() {
     void queryClient.invalidateQueries({ queryKey: ["db-catalog-products"] });
     void queryClient.invalidateQueries({ queryKey: ["trending-this-week"] });
   };
+
+  const csvStockPriceMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/admin/bulk-update-stock-price", {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+      const body = (await res.json()) as {
+        updated?: number;
+        notFound?: string[];
+        totalInFile?: number;
+        parseWarnings?: string[];
+        updateErrors?: string[];
+        error?: string;
+        details?: string[];
+      };
+      if (!res.ok) {
+        const msg =
+          typeof body.error === "string"
+            ? body.error
+            : typeof body.details?.[0] === "string"
+              ? body.details[0]
+              : "CSV import failed";
+        throw new Error(msg);
+      }
+      return body;
+    },
+    onSuccess: body => {
+      const n = body.updated ?? 0;
+      const missing = body.notFound?.length ?? 0;
+      toast.success(`Updated ${n} product${n !== 1 ? "s" : ""} stock & price.`);
+      if (missing > 0) {
+        toast.message(`${missing} SKU${missing !== 1 ? "s were" : " was"} not found in Supabase`, {
+          description: (body.notFound ?? []).slice(0, 8).join(", ") + (missing > 8 ? "…" : ""),
+        });
+      }
+      const warns = [...(body.parseWarnings ?? []), ...(body.updateErrors ?? [])];
+      if (warns.length) {
+        toast.message("CSV notes", {
+          description: warns.slice(0, 5).join(" · ") + (warns.length > 5 ? "…" : ""),
+        });
+      }
+      setCsvFile(null);
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message || "CSV import failed"),
+  });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteProduct(id),
@@ -336,6 +388,81 @@ export default function AdminProductsPage() {
           <Button onClick={openAdd} className="gap-2 shrink-0">
             <Plus size={18} /> Add product
           </Button>
+        </div>
+
+        <div className="rounded-card border border-border bg-card p-4 md:p-5 space-y-3">
+          <div className="flex items-start gap-3">
+            <FileSpreadsheet className="h-5 w-5 text-primary shrink-0 mt-0.5" aria-hidden />
+            <div className="min-w-0 space-y-1">
+              <h2 className="font-heading font-semibold text-sm">Daily stock & price (CSV)</h2>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Use <strong className="text-foreground font-medium">Download catalogue CSV</strong> to export every
+                product’s real SKU, stock, and price from the database, edit offline, then upload here again.
+                Or build your own CSV: header row required with{" "}
+                <code className="text-[11px] bg-muted px-1 rounded">sku</code>,{" "}
+                <code className="text-[11px] bg-muted px-1 rounded">quantity</code> (or <code className="text-[11px] bg-muted px-1 rounded">stock</code>,{" "}
+                <code className="text-[11px] bg-muted px-1 rounded">qty</code>), and{" "}
+                <code className="text-[11px] bg-muted px-1 rounded">price</code> (or{" "}
+                <code className="text-[11px] bg-muted px-1 rounded">price_per_pc</code>). Existing products are updated
+                only; unknown SKUs are reported and skipped.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              className="text-xs max-w-full file:mr-2 file:text-xs file:border-0 file:bg-muted file:rounded file:px-2 file:py-1"
+              onChange={e => setCsvFile(e.target.files?.[0] ?? null)}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={
+                csvStockPriceMutation.isPending || isLoading || prods.length === 0
+              }
+              title={prods.length === 0 && !isLoading ? "No products in the catalogue yet." : undefined}
+              onClick={() => {
+                if (prods.length === 0) {
+                  toast.error("No products to export yet.");
+                  return;
+                }
+                const headers = [["sku", "quantity", "price"]];
+                const sorted = [...prods].sort((a, b) => a.sku.localeCompare(b.sku));
+                const dataRows = sorted.map(p => {
+                  const stockRounded = Math.max(0, Math.round(Number(p.stock)));
+                  const priceNum = Number(p.pricePerPc);
+                  const priceStr = Number.isFinite(priceNum)
+                    ? String(Math.round(priceNum * 100) / 100)
+                    : "";
+                  return [p.sku, String(stockRounded), priceStr];
+                });
+                const BOM = "\uFEFF";
+                const csv = BOM + encodeCsv([...headers, ...dataRows]);
+                const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                const day = new Date().toISOString().slice(0, 10);
+                a.href = url;
+                a.download = `stock-price-catalogue-${day}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast.success(`Exported ${sorted.length} product${sorted.length !== 1 ? "s" : ""}.`);
+              }}
+            >
+              Download catalogue CSV
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={!csvFile || csvStockPriceMutation.isPending}
+              onClick={() => csvFile && csvStockPriceMutation.mutate(csvFile)}
+              className="gap-2"
+            >
+              {csvStockPriceMutation.isPending ? "Applying…" : "Apply CSV updates"}
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (

@@ -224,6 +224,13 @@ export async function updateProduct(id: string, payload: ProductPayload): Promis
   return mapRowToProduct(data as ProductRow);
 }
 
+/** Partial update used by bulk price/MOQ sheet. */
+export async function patchProductPriceAndMoq(id: string, pricePerPc: number, moq: number): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("products").update({ price_per_pc: pricePerPc, moq }).eq("id", id);
+  if (error) throw error;
+}
+
 export async function deleteProduct(id: string): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.from("products").delete().eq("id", id);

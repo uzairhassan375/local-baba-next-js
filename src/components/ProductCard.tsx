@@ -2,6 +2,7 @@ import { Heart } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import type { Product } from "@/data/mockData";
+import { ProductMedia } from "@/components/ProductMedia";
 import { useCart } from "@/contexts/CartContext";
 
 interface Props {
@@ -39,7 +40,7 @@ export function ProductCard({ product }: Props) {
     <div className="bg-card rounded-card border border-border overflow-hidden group transition-shadow hover:shadow-card">
       <Link href={`/product/${product.slug}`} className="block">
         <div className={`relative aspect-square bg-muted overflow-hidden ${isSoldOut ? "grayscale" : ""}`}>
-          <img
+          <ProductMedia
             src={product.images[0]}
             alt={product.name}
             loading="lazy"

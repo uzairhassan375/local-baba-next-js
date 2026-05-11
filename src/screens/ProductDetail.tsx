@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { Heart, Truck, MessageCircle, Shield, ChevronDown, ChevronUp } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { ProductCard } from "@/components/ProductCard";
+import { ProductMedia } from "@/components/ProductMedia";
 import { CartSidebar } from "@/components/CartSidebar";
 import { useMergedCatalog } from "@/hooks/useMergedCatalog";
 
@@ -70,13 +71,18 @@ export default function ProductDetailPage() {
         {/* Images */}
         <div>
           <div className={`relative aspect-square bg-muted rounded-card overflow-hidden ${isSoldOut ? "grayscale" : ""}`}>
-            <img src={product.images[mainImage]} alt={product.name} className="w-full h-full object-cover" />
+            <ProductMedia
+              src={product.images[mainImage]}
+              alt={product.name}
+              videoControls
+              className="w-full h-full object-cover"
+            />
             {badge && <span className={`absolute top-3 left-3 px-3 py-1 rounded-pill text-xs font-bold text-primary-foreground ${badge.cls}`}>{badge.label}</span>}
           </div>
           <div className="flex gap-2 mt-3">
             {product.images.slice(0, 4).map((img, i) => (
               <button key={i} onClick={() => setMainImage(i)} className={`w-16 h-16 rounded-lg overflow-hidden border-2 ${mainImage === i ? "border-primary" : "border-transparent"}`}>
-                <img src={img} alt="" className="w-full h-full object-cover" />
+                <ProductMedia src={img} alt="" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, X, ImagePlus, ChevronUp, ChevronDown, Star } from "lucide-react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import { ProductMedia } from "@/components/ProductMedia";
 import type { Product } from "@/data/mockData";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -278,7 +279,7 @@ export default function AdminProductsPage() {
         }
       }
       if (imageUrls.length === 0) {
-        toast.error("Add at least one image (URL or file upload)");
+        toast.error("Add at least one image or video (URL or file upload)");
         setSaving(false);
         return;
       }
@@ -328,7 +329,8 @@ export default function AdminProductsPage() {
           <div>
             <h1 className="font-heading font-bold text-2xl">Products</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Manage catalogue and “Trending this week” (toggle below). Images upload to Supabase Storage.
+              Manage catalogue and “Trending this week” (toggle below). File uploads go to Bunny.net; only URLs are
+              saved in Supabase.
             </p>
           </div>
           <Button onClick={openAdd} className="gap-2 shrink-0">
@@ -363,7 +365,7 @@ export default function AdminProductsPage() {
                     <tr key={p.id} className="border-b border-border last:border-0">
                       <td className="p-3">
                         <div className="flex items-center gap-2 min-w-0">
-                          <img
+                          <ProductMedia
                             src={p.images[0]}
                             alt=""
                             className="w-10 h-10 rounded object-cover shrink-0"
@@ -633,7 +635,7 @@ export default function AdminProductsPage() {
                 <div className="space-y-3">
                   <div>
                     <Label className="flex items-center gap-2">
-                      <ImagePlus size={16} /> Product images
+                      <ImagePlus size={16} /> Product images & videos
                     </Label>
                     <p className="text-xs text-muted-foreground mt-1">
                       The <strong className="text-foreground">cover</strong> image is the main catalogue photo. Use{" "}
@@ -642,7 +644,7 @@ export default function AdminProductsPage() {
                     </p>
                     {pendingCoverIndex !== null && pendingFiles.length > 0 && (
                       <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/25 rounded-md px-2 py-1.5">
-                        The highlighted new image will become the cover when you save.
+                        The highlighted new file will become the cover when you save.
                       </p>
                     )}
                   </div>
@@ -653,7 +655,7 @@ export default function AdminProductsPage() {
                         key={`saved-${i}-${url.slice(0, 48)}`}
                         className="relative w-[88px] h-[88px] rounded-lg border border-border bg-muted overflow-hidden shrink-0"
                       >
-                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <ProductMedia src={url} alt="" className="w-full h-full object-cover" />
                         {i === 0 && (
                           <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-primary text-primary-foreground z-[1]">
                             Cover
@@ -713,11 +715,22 @@ export default function AdminProductsPage() {
                         key={`pending-${i}-${file.name}-${file.size}`}
                         className="relative w-[88px] h-[88px] rounded-lg border border-dashed border-primary/50 bg-muted overflow-hidden shrink-0"
                       >
-                        <img
-                          src={pendingPreviewUrls[i]}
-                          alt=""
-                          className="w-full h-full object-cover opacity-90"
-                        />
+                        {file.type.startsWith("video/") ? (
+                          <video
+                            src={pendingPreviewUrls[i]}
+                            muted
+                            playsInline
+                            preload="metadata"
+                            className="w-full h-full object-cover opacity-90"
+                            aria-hidden
+                          />
+                        ) : (
+                          <img
+                            src={pendingPreviewUrls[i]}
+                            alt=""
+                            className="w-full h-full object-cover opacity-90"
+                          />
+                        )}
                         <span className="absolute top-1 left-1 px-1 py-0.5 rounded text-[9px] font-medium bg-primary/90 text-primary-foreground z-[1]">
                           {pendingCoverIndex === i ? "Cover" : "New"}
                         </span>
@@ -753,7 +766,7 @@ export default function AdminProductsPage() {
 
                   <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
                     <div className="grid gap-1.5 flex-1 min-w-0">
-                      <Label className="text-xs text-muted-foreground">Add image by URL</Label>
+                      <Label className="text-xs text-muted-foreground">Add media by URL</Label>
                       <div className="flex gap-2">
                         <Input
                           value={imageUrlDraft}
@@ -780,12 +793,12 @@ export default function AdminProductsPage() {
                         <ImagePlus className="h-5 w-5 text-primary" aria-hidden />
                         <span className="text-sm font-semibold text-primary">Choose files</span>
                         <span className="text-[11px] text-muted-foreground text-center leading-tight">
-                          Click to add images (multiple allowed)
+                          Images or videos (multiple allowed)
                         </span>
                         <input
                           id="admin-product-image-upload"
                           type="file"
-                          accept="image/*"
+                          accept="image/*,video/*"
                           multiple
                           className="sr-only"
                           onChange={e => {
@@ -800,7 +813,7 @@ export default function AdminProductsPage() {
 
                   <details className="rounded-md border border-border bg-muted/30 px-3 py-2">
                     <summary className="text-sm font-medium cursor-pointer text-muted-foreground hover:text-foreground">
-                      Bulk paste image URLs (one per line)
+                      Bulk paste media URLs (one per line)
                     </summary>
                     <Textarea
                       className="mt-2"

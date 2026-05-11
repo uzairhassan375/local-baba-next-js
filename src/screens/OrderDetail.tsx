@@ -2,6 +2,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Copy, Check, ExternalLink } from "lucide-react";
 import { useState } from "react";
+
+import { ProductMedia } from "@/components/ProductMedia";
 import { orders } from "@/data/mockData";
 
 const statusColors: Record<string, string> = {
@@ -115,7 +117,7 @@ export default function OrderDetailPage() {
                 <tr key={i} className="border-b border-border last:border-0">
                   <td className="p-3">
                     <div className="flex items-center gap-3">
-                      <img src={item.image} alt={item.name} className="w-10 h-10 rounded-lg object-cover" />
+                      <ProductMedia src={item.image} alt={item.name} className="w-10 h-10 rounded-lg object-cover" />
                       <span className="font-medium">{item.name}</span>
                     </div>
                   </td>

@@ -1,6 +1,8 @@
 import { X } from "lucide-react";
-import { useCart } from "@/contexts/CartContext";
 import Link from "next/link";
+
+import { ProductMedia } from "@/components/ProductMedia";
+import { useCart } from "@/contexts/CartContext";
 
 export function CartSidebar() {
   const { items, isOpen, closeCart, removeItem, updateQty, total } = useCart();
@@ -20,7 +22,7 @@ export function CartSidebar() {
           {items.length === 0 && <p className="text-muted-foreground text-sm text-center py-8">Your cart is empty</p>}
           {items.map(item => (
             <div key={item.productId} className="flex gap-3 p-3 border border-border rounded-card">
-              <img src={item.image} alt={item.name} className="w-16 h-16 rounded-lg object-cover" />
+              <ProductMedia src={item.image} alt={item.name} className="w-16 h-16 rounded-lg object-cover" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{item.name}</p>
                 <div className="flex items-center gap-2 mt-1">

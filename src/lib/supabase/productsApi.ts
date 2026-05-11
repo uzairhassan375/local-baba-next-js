@@ -1,8 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import type { Product } from "@/data/mockData";
 
-const BUCKET = "product-images";
-
 type ProductRow = {
   id: string;
   sku?: string | null;
@@ -239,19 +237,23 @@ export async function uploadProductImages(files: File[]): Promise<string[]> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("You must be signed in as admin to upload images.");
 
-  const urls: string[] = [];
-  for (const file of files) {
-    const safe = file.name.replace(/[^\w.-]+/g, "_");
-    const path = `${user.id}/${crypto.randomUUID()}-${safe}`;
-    const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
-    if (error) throw error;
-    const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
-    urls.push(pub.publicUrl);
+  const form = new FormData();
+  for (const file of files) form.append("files", file);
+
+  const res = await fetch("/api/upload-media", {
+    method: "POST",
+    body: form,
+    credentials: "include",
+  });
+
+  const body = (await res.json().catch(() => ({}))) as { urls?: string[]; error?: string };
+  if (!res.ok) {
+    throw new Error(body.error || "Upload failed");
   }
-  return urls;
+  if (!body.urls?.length) {
+    throw new Error("Upload returned no URLs");
+  }
+  return body.urls;
 }
 
 export function slugify(name: string) {

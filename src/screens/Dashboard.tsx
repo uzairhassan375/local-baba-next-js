@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Megaphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { orders } from "@/data/mockData";
+import { ProductMedia } from "@/components/ProductMedia";
 import { ProductCard } from "@/components/ProductCard";
 import { fetchTrendingThisWeek } from "@/lib/supabase/productsApi";
 import { fetchPublishedBlasts, blastVisibleForMemberCity } from "@/lib/supabase/blastsApi";
@@ -101,7 +102,7 @@ export default function DashboardPage() {
           {recentOrders.flatMap(o => o.items).slice(0, 4).map((item, i) => (
             <div key={i} className="min-w-[160px] bg-card rounded-card border border-border p-3 flex-shrink-0">
               <div className="w-full aspect-square bg-muted rounded-lg mb-2 overflow-hidden">
-                <img src={item.image} alt={item.name} loading="lazy" className="w-full h-full object-cover" />
+                <ProductMedia src={item.image} alt={item.name} loading="lazy" className="w-full h-full object-cover" />
               </div>
               <p className="text-xs font-medium line-clamp-2">{item.name}</p>
               <p className="text-[10px] text-muted-foreground mt-1">Last ordered: 18 Mar</p>

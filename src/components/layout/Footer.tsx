@@ -1,60 +1,99 @@
 import Link from "next/link";
+import { Facebook, Instagram, MessageCircle } from "lucide-react";
 
 const footerLinks = [
   { label: "How it works", href: "/#how-it-works" },
   { label: "Register", href: "/apply" },
-  { label: "Browse catalogue", href: "/catalogue" },
-  { label: "Track order", href: "/orders" },
+  { label: "Member login", href: "/login" },
   { label: "WhatsApp support", href: "https://wa.me/923001234567" },
+];
+
+const socialLinks = [
+  {
+    label: "Facebook",
+    href: "https://www.facebook.com/share/1D3mYsssTj/?mibextid=wwXIfr",
+    icon: Facebook,
+  },
+  {
+    label: "Instagram",
+    href: "https://www.instagram.com/localbaba0?igsh=MXVoMTQ1am01OW9zeQ%3D%3D&utm_source=qr",
+    icon: Instagram,
+  },
 ];
 
 export function Footer() {
   return (
-    <footer className="bg-dark text-sidebar-foreground">
-      <div className="container py-16">
-        <div className="grid md:grid-cols-3 gap-12">
+    <footer className="bg-dark text-sidebar-foreground border-t border-primary-foreground/5">
+      <div className="container py-14 md:py-16">
+        <div className="grid md:grid-cols-3 gap-10 md:gap-12">
           <div>
             <p className="font-heading font-bold text-xl text-primary-foreground mb-3">
-              The Local Baba<span className="text-primary">.</span>
+              localbaba<span className="text-primary">.</span>
             </p>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Pakistan's first direct-importer B2B platform.
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+              Pakistan&apos;s direct-importer B2B platform. Wholesale the way it should be — from Lahore.
             </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Direct from importers. Delivered to your door.
-            </p>
+            <div className="flex gap-3 mt-5">
+              {socialLinks.map(s => (
+                <a
+                  key={s.label}
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={s.label}
+                  className="w-10 h-10 rounded-lg bg-primary-foreground/8 border border-primary-foreground/10 flex items-center justify-center text-primary-foreground/70 hover:text-primary hover:border-primary/40 transition-colors"
+                >
+                  <s.icon size={18} />
+                </a>
+              ))}
+            </div>
           </div>
+
           <div>
-            <p className="font-heading font-semibold text-primary-foreground text-sm mb-4">Quick Links</p>
-            <ul className="space-y-2">
+            <p className="font-heading font-semibold text-primary-foreground text-sm mb-4">Quick links</p>
+            <ul className="space-y-2.5">
               {footerLinks.map(l => (
                 <li key={l.label}>
                   {l.href.startsWith("http") ? (
-                    <a href={l.href} target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-primary transition-colors">{l.label}</a>
+                    <a
+                      href={l.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      {l.label}
+                    </a>
                   ) : (
-                    <Link href={l.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">{l.label}</Link>
+                    <Link href={l.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                      {l.label}
+                    </Link>
                   )}
                 </li>
               ))}
             </ul>
           </div>
+
           <div>
-            <p className="font-heading font-semibold text-primary-foreground text-sm mb-4">Connect</p>
-            <ul className="space-y-2">
-              <li><a href="https://instagram.com/thelocalbaba" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-primary transition-colors">Instagram @thelocalbaba</a></li>
-              <li><a href="https://tiktok.com/@thelocalbaba" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-primary transition-colors">TikTok @thelocalbaba</a></li>
-              <li>
-                <a href="https://wa.me/923001234567" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 mt-2 h-10 px-4 rounded-pill bg-success text-primary-foreground text-sm font-medium">
-                  WhatsApp us
-                </a>
-              </li>
-            </ul>
+            <p className="font-heading font-semibold text-primary-foreground text-sm mb-4">Get in touch</p>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+              Questions about bulk pricing or membership? Our team replies on WhatsApp.
+            </p>
+            <a
+              href="https://wa.me/923001234567"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 h-10 px-5 rounded-pill bg-olive text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              <MessageCircle size={16} />
+              WhatsApp us
+            </a>
           </div>
         </div>
       </div>
-      <div className="border-t border-sidebar-border">
-        <div className="container py-4 text-center text-xs text-muted-foreground">
-          © 2025 The Local Baba. All rights reserved.
+      <div className="border-t border-primary-foreground/8">
+        <div className="container py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span>© {new Date().getFullYear()} localbaba. All rights reserved.</span>
+          <span>Lahore, Pakistan</span>
         </div>
       </div>
     </footer>

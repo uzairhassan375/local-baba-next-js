@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Copy, Check } from "lucide-react";
+import { useProfile } from "@/contexts/ProfileContext";
+import { Copy, Check, MapPin, Plus } from "lucide-react";
 
 const cities = ["Lahore", "Karachi", "Islamabad", "Faisalabad", "Rawalpindi", "Multan", "Peshawar", "Quetta", "Other"];
 
@@ -15,14 +16,37 @@ const provinceMap: Record<string, string> = {
 export default function CheckoutPage() {
   const { items, total, clearCart } = useCart();
   const { member } = useAuth();
+  const { addresses, defaultAddress } = useProfile();
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>("");
+  const [addressMode, setAddressMode] = useState<"saved" | "new">(addresses.length > 0 ? "saved" : "new");
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(defaultAddress?.id ?? null);
   const [form, setForm] = useState({
     name: member?.name || "", whatsapp: member?.whatsapp || "",
     address: "", city: member?.city || "", landmark: "", notes: "", promo: "",
   });
+
+  useEffect(() => {
+    if (addressMode !== "saved" || !selectedAddressId) return;
+    const addr = addresses.find(a => a.id === selectedAddressId);
+    if (!addr) return;
+    setForm(f => ({
+      ...f,
+      name: addr.name,
+      whatsapp: addr.whatsapp,
+      address: addr.address,
+      city: addr.city,
+      landmark: addr.landmark,
+    }));
+  }, [addressMode, selectedAddressId, addresses]);
+
+  useEffect(() => {
+    if (defaultAddress && !selectedAddressId) {
+      setSelectedAddressId(defaultAddress.id);
+    }
+  }, [defaultAddress, selectedAddressId]);
 
   const province = provinceMap[form.city] || "";
 
@@ -61,40 +85,97 @@ export default function CheckoutPage() {
             {/* Delivery */}
             <div className="bg-card rounded-card border border-border p-6 space-y-4">
               <h2 className="font-heading font-semibold text-lg">Delivery details</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2 md:col-span-1">
-                  <label className="text-sm font-medium block mb-1">Full name *</label>
-                  <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className="w-full h-11 px-3 rounded-lg border border-border bg-card focus:border-primary focus:outline-none" />
+
+              {addresses.length > 0 && (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAddressMode("saved")}
+                    className={`flex-1 h-10 rounded-lg text-sm font-medium border transition-colors ${
+                      addressMode === "saved" ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <MapPin size={14} className="inline mr-1.5 -mt-0.5" />
+                    Saved address
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAddressMode("new")}
+                    className={`flex-1 h-10 rounded-lg text-sm font-medium border transition-colors ${
+                      addressMode === "new" ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <Plus size={14} className="inline mr-1.5 -mt-0.5" />
+                    New address
+                  </button>
                 </div>
-                <div className="col-span-2 md:col-span-1">
-                  <label className="text-sm font-medium block mb-1">WhatsApp number *</label>
-                  <div className="flex">
-                    <span className="h-11 px-3 flex items-center text-sm bg-muted border border-r-0 border-border rounded-l-lg text-muted-foreground">+92</span>
-                    <input value={form.whatsapp} onChange={e => setForm({ ...form, whatsapp: e.target.value })} required className="flex-1 h-11 px-3 rounded-r-lg border border-border bg-card focus:border-primary focus:outline-none" />
+              )}
+
+              {addressMode === "saved" && addresses.length > 0 && (
+                <div className="space-y-2">
+                  {addresses.map(addr => (
+                    <label
+                      key={addr.id}
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedAddressId === addr.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="savedAddress"
+                        checked={selectedAddressId === addr.id}
+                        onChange={() => setSelectedAddressId(addr.id)}
+                        className="accent-primary mt-1"
+                      />
+                      <div>
+                        <p className="text-sm font-medium">{addr.label}{addr.isDefault ? " · Default" : ""}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{addr.name} · +92{addr.whatsapp}</p>
+                        <p className="text-xs text-muted-foreground">{addr.address}, {addr.city}</p>
+                      </div>
+                    </label>
+                  ))}
+                  <Link href="/profile" className="text-xs text-primary hover:underline">Manage addresses in profile →</Link>
+                </div>
+              )}
+
+              {(addressMode === "new" || addresses.length === 0) && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2 md:col-span-1">
+                      <label className="text-sm font-medium block mb-1">Full name *</label>
+                      <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className="w-full h-11 px-3 rounded-lg border border-border bg-card focus:border-primary focus:outline-none" />
+                    </div>
+                    <div className="col-span-2 md:col-span-1">
+                      <label className="text-sm font-medium block mb-1">WhatsApp number *</label>
+                      <div className="flex">
+                        <span className="h-11 px-3 flex items-center text-sm bg-muted border border-r-0 border-border rounded-l-lg text-muted-foreground">+92</span>
+                        <input value={form.whatsapp} onChange={e => setForm({ ...form, whatsapp: e.target.value })} required className="flex-1 h-11 px-3 rounded-r-lg border border-border bg-card focus:border-primary focus:outline-none" />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Full delivery address *</label>
-                <textarea value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} required rows={3} className="w-full px-3 py-2 rounded-lg border border-border bg-card focus:border-primary focus:outline-none resize-none" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium block mb-1">City *</label>
-                  <select value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} required className="w-full h-11 px-3 rounded-lg border border-border bg-card focus:border-primary focus:outline-none">
-                    <option value="">Select</option>
-                    {cities.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium block mb-1">Province</label>
-                  <input value={province} readOnly className="w-full h-11 px-3 rounded-lg border border-border bg-muted text-muted-foreground" />
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Nearest landmark</label>
-                <input value={form.landmark} onChange={e => setForm({ ...form, landmark: e.target.value })} placeholder="e.g. near Packages Mall" className="w-full h-11 px-3 rounded-lg border border-border bg-card focus:border-primary focus:outline-none" />
-              </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-1">Full delivery address *</label>
+                    <textarea value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} required rows={3} className="w-full px-3 py-2 rounded-lg border border-border bg-card focus:border-primary focus:outline-none resize-none" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium block mb-1">City *</label>
+                      <select value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} required className="w-full h-11 px-3 rounded-lg border border-border bg-card focus:border-primary focus:outline-none">
+                        <option value="">Select</option>
+                        {cities.map(c => <option key={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium block mb-1">Province</label>
+                      <input value={province} readOnly className="w-full h-11 px-3 rounded-lg border border-border bg-muted text-muted-foreground" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-1">Nearest landmark</label>
+                    <input value={form.landmark} onChange={e => setForm({ ...form, landmark: e.target.value })} placeholder="e.g. near Packages Mall" className="w-full h-11 px-3 rounded-lg border border-border bg-card focus:border-primary focus:outline-none" />
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Payment */}
@@ -102,7 +183,6 @@ export default function CheckoutPage() {
               <h2 className="font-heading font-semibold text-lg">Payment method</h2>
               {[
                 { id: "bank_transfer", label: "Bank Transfer", desc: "Most popular among our sellers", icon: "🏦" },
-                { id: "easypaisa", label: "EasyPaisa / JazzCash", desc: "Mobile wallet payment", icon: "📱" },
                 { id: "cod", label: "Cash on Delivery", desc: "Available in Lahore, Karachi, Islamabad for orders under Rs 30,000", icon: "💵" },
               ].map(pm => (
                 <div key={pm.id}>
@@ -127,16 +207,6 @@ export default function CheckoutPage() {
                         </button>
                       </div>
                       <p className="text-muted-foreground text-xs mt-2">Transfer exact amount within 24 hours. Use your Order ID as reference.</p>
-                    </div>
-                  )}
-                  {paymentMethod === "easypaisa" && pm.id === "easypaisa" && (
-                    <div className="mt-3 p-4 bg-muted rounded-lg text-sm animate-fade-in-up">
-                      <div className="flex items-center gap-2">
-                        <p>Number: <strong className="font-mono">0300-1234567</strong></p>
-                        <button type="button" onClick={() => handleCopy("03001234567")} className="text-primary">
-                          {copied ? <Check size={14} /> : <Copy size={14} />}
-                        </button>
-                      </div>
                     </div>
                   )}
                 </div>

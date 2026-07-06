@@ -254,3 +254,28 @@ export async function updateApplicationStatus(
     .eq("id", id);
   if (error) throw error;
 }
+
+export type MemberProfileUpdate = {
+  name: string;
+  whatsapp: string;
+  city: string;
+  business_name: string;
+};
+
+export async function updateMemberProfile(userId: string, payload: MemberProfileUpdate): Promise<Application> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("membership_applications")
+    .update({
+      name: payload.name.trim(),
+      whatsapp: payload.whatsapp.replace(/\D/g, ""),
+      city: payload.city,
+      business_name: payload.business_name.trim(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("auth_user_id", userId)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return mapRowToApplication(data as ApplicationRow);
+}

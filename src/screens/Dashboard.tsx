@@ -1,13 +1,14 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Megaphone } from "lucide-react";
+import { Heart, Megaphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFavorites } from "@/contexts/FavoritesContext";
 import { orders } from "@/data/mockData";
-import { ProductMedia } from "@/components/ProductMedia";
 import { ProductCard } from "@/components/ProductCard";
 import { fetchTrendingThisWeek } from "@/lib/supabase/productsApi";
 import { fetchPublishedBlasts, blastVisibleForMemberCity } from "@/lib/supabase/blastsApi";
+import { useMergedCatalog } from "@/hooks/useMergedCatalog";
 
 const statusColors: Record<string, string> = {
   processing: "bg-amber-100 text-amber-800",
@@ -16,8 +17,23 @@ const statusColors: Record<string, string> = {
   cancelled: "bg-danger/10 text-danger",
 };
 
+function StatValue({ value, prefix = "" }: { value?: number | null; prefix?: string }) {
+  if (value == null || value === 0) {
+    return <p className="font-heading font-bold text-xl text-muted-foreground/60">—</p>;
+  }
+  return (
+    <p className="font-heading font-bold text-xl text-primary-foreground">
+      {prefix}
+      {value.toLocaleString()}
+    </p>
+  );
+}
+
 export default function DashboardPage() {
   const { member } = useAuth();
+  const { favoriteIds } = useFavorites();
+  const { merged: products } = useMergedCatalog();
+
   const { data: trendingFromDb } = useQuery({
     queryKey: ["trending-this-week"],
     queryFn: fetchTrendingThisWeek,
@@ -25,6 +41,11 @@ export default function DashboardPage() {
   });
   const trending = useMemo(() => trendingFromDb?.slice(0, 4) ?? [], [trendingFromDb]);
   const recentOrders = orders.slice(0, 4);
+
+  const favoriteProducts = useMemo(
+    () => products.filter(p => favoriteIds.includes(p.id)),
+    [products, favoriteIds],
+  );
 
   const { data: publishedBlasts = [] } = useQuery({
     queryKey: ["blasts-published"],
@@ -35,6 +56,8 @@ export default function DashboardPage() {
     () => publishedBlasts.filter(b => blastVisibleForMemberCity(b, member?.city)),
     [publishedBlasts, member?.city],
   );
+
+  const monthlySpend = member?.totalSpent && member.totalSpent > 0 ? member.totalSpent : null;
 
   return (
     <div className="p-4 md:p-8 space-y-6 animate-fade-in-up">
@@ -49,15 +72,15 @@ export default function DashboardPage() {
         <div className="flex flex-wrap gap-6 mt-4">
           <div>
             <p className="text-xs text-muted-foreground">Total orders</p>
-            <p className="font-heading font-bold text-xl text-primary-foreground">{member?.totalOrders}</p>
+            <StatValue value={member?.totalOrders} />
           </div>
           <div>
             <p className="text-xs text-muted-foreground">This month</p>
-            <p className="font-heading font-bold text-xl text-primary-foreground">Rs {(45000).toLocaleString()}</p>
+            <StatValue value={monthlySpend} prefix="Rs " />
           </div>
           <div className="relative">
             <p className="text-xs text-muted-foreground">Saved vs market</p>
-            <p className="font-heading font-bold text-xl text-primary">Rs {member?.savedVsMarket?.toLocaleString()}</p>
+            <StatValue value={member?.savedVsMarket} prefix="Rs " />
           </div>
         </div>
       </div>
@@ -94,24 +117,28 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Quick Reorder */}
+      {/* Favourites */}
       <div>
-        <h3 className="font-heading font-bold text-lg mb-1">Reorder your favourites</h3>
-        <p className="text-xs text-muted-foreground mb-3">Based on your last orders</p>
-        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
-          {recentOrders.flatMap(o => o.items).slice(0, 4).map((item, i) => (
-            <div key={i} className="min-w-[160px] bg-card rounded-card border border-border p-3 flex-shrink-0">
-              <div className="w-full aspect-square bg-muted rounded-lg mb-2 overflow-hidden">
-                <ProductMedia src={item.image} alt={item.name} loading="lazy" className="w-full h-full object-cover" />
-              </div>
-              <p className="text-xs font-medium line-clamp-2">{item.name}</p>
-              <p className="text-[10px] text-muted-foreground mt-1">Last ordered: 18 Mar</p>
-              <button className="w-full h-8 rounded-lg bg-primary text-primary-foreground text-xs font-semibold mt-2 hover:bg-accent-hover transition-colors">
-                Reorder {item.qty} pcs
-              </button>
-            </div>
-          ))}
-        </div>
+        <h3 className="font-heading font-bold text-lg mb-1 flex items-center gap-2">
+          <Heart size={18} className="text-primary" />
+          Your favourites
+        </h3>
+        <p className="text-xs text-muted-foreground mb-3">Products you saved with the heart icon</p>
+        {favoriteProducts.length === 0 ? (
+          <div className="bg-card rounded-card border border-dashed border-border p-8 text-center">
+            <Heart size={32} className="mx-auto text-muted-foreground/40 mb-3" />
+            <p className="text-sm text-muted-foreground">No favourites yet.</p>
+            <Link href="/catalogue" className="text-primary text-sm hover:underline inline-block mt-2">
+              Browse catalogue →
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {favoriteProducts.map(p => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Trending */}
@@ -131,53 +158,45 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent Orders */}
-      <div>
-        <h3 className="font-heading font-bold text-lg mb-3">Recent orders</h3>
-        <div className="bg-card rounded-card border border-border overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left p-3 font-medium text-muted-foreground">Order ID</th>
-                <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Date</th>
-                <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Items</th>
-                <th className="text-left p-3 font-medium text-muted-foreground">Total</th>
-                <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
-                <th className="text-left p-3 font-medium text-muted-foreground">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentOrders.map(o => (
-                <tr key={o.id} className="border-b border-border last:border-0">
-                  <td className="p-3 font-mono font-medium">#{o.id}</td>
-                  <td className="p-3 text-muted-foreground hidden md:table-cell">{new Date(o.createdAt).toLocaleDateString()}</td>
-                  <td className="p-3 text-muted-foreground hidden md:table-cell">{o.items.length} products</td>
-                  <td className="p-3 font-heading font-bold">Rs {o.total.toLocaleString()}</td>
-                  <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded-pill text-xs font-medium ${statusColors[o.orderStatus]}`}>
-                      {o.orderStatus}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    <Link href={`/orders/${o.id}`} className="text-primary text-xs hover:underline">
-                      {o.orderStatus === "delivered" ? "Reorder" : "Track"}
-                    </Link>
-                  </td>
+      {recentOrders.length > 0 && (
+        <div>
+          <h3 className="font-heading font-bold text-lg mb-3">Recent orders</h3>
+          <div className="bg-card rounded-card border border-border overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left p-3 font-medium text-muted-foreground">Order ID</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Date</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Items</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">Total</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {recentOrders.map(o => (
+                  <tr key={o.id} className="border-b border-border last:border-0">
+                    <td className="p-3 font-mono font-medium">#{o.id}</td>
+                    <td className="p-3 text-muted-foreground hidden md:table-cell">{new Date(o.createdAt).toLocaleDateString()}</td>
+                    <td className="p-3 text-muted-foreground hidden md:table-cell">{o.items.length} products</td>
+                    <td className="p-3 font-heading font-bold">Rs {o.total.toLocaleString()}</td>
+                    <td className="p-3">
+                      <span className={`px-2 py-0.5 rounded-pill text-xs font-medium ${statusColors[o.orderStatus]}`}>
+                        {o.orderStatus}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      <Link href={`/orders/${o.id}`} className="text-primary text-xs hover:underline">
+                        {o.orderStatus === "delivered" ? "Reorder" : "Track"}
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-
-      {/* Community */}
-      <div className="bg-olive/10 rounded-card p-6 border border-olive/20">
-        <h3 className="font-heading font-bold text-lg">Join the member community</h3>
-        <p className="text-muted-foreground text-sm mt-1">Get early drops, selling tips, and flash deals before anyone else.</p>
-        <a href="https://wa.me/923001234567" target="_blank" rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 h-10 px-5 rounded-lg bg-olive text-primary-foreground text-sm font-semibold mt-4">
-          Join WhatsApp group <ArrowRight size={16} />
-        </a>
-      </div>
+      )}
     </div>
   );
 }

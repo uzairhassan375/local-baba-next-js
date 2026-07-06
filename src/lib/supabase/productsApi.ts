@@ -20,6 +20,9 @@ type ProductRow = {
   seller_tips: unknown;
   show_in_trending: boolean;
   trending_sort: number;
+  catalog_type?: string | null;
+  show_on_landing?: boolean;
+  landing_sort?: number;
 };
 
 function asTags(v: unknown): Product["tags"] {
@@ -88,6 +91,9 @@ export function mapRowToProduct(row: ProductRow): Product {
     sellerTips: asStringArray(row.seller_tips),
     showInTrending: row.show_in_trending ?? false,
     trendingSort: row.trending_sort ?? 0,
+    catalogType: row.catalog_type === "china" ? "china" : "standard",
+    showOnLanding: row.show_on_landing ?? false,
+    landingSort: row.landing_sort ?? 0,
   };
 }
 
@@ -127,6 +133,21 @@ export async function fetchTrendingThisWeek(): Promise<Product[]> {
   return (data as ProductRow[]).map(mapRowToProduct);
 }
 
+/** Active products curated by admin for the public landing page. */
+export async function fetchLandingProducts(): Promise<Product[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .eq("show_on_landing", true)
+    .eq("status", "active")
+    .order("landing_sort", { ascending: false })
+    .order("updated_at", { ascending: false })
+    .limit(12);
+  if (error) throw error;
+  return (data as ProductRow[]).map(mapRowToProduct);
+}
+
 export async function fetchProductBySlugFromDb(slug: string): Promise<Product | null> {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -158,6 +179,9 @@ export type ProductPayload = {
   seller_tips: string[];
   show_in_trending: boolean;
   trending_sort: number;
+  catalog_type: "standard" | "china";
+  show_on_landing: boolean;
+  landing_sort: number;
 };
 
 export function suggestSkuFromSlug(slug: string): string {
@@ -187,6 +211,9 @@ export function productToPayload(p: {
   sellerTips: string[];
   showInTrending: boolean;
   trendingSort: number;
+  catalogType?: "standard" | "china";
+  showOnLanding?: boolean;
+  landingSort?: number;
 }): ProductPayload {
   const sku = p.sku?.trim() ? p.sku.trim() : suggestSkuFromSlug(p.slug);
   return {
@@ -207,6 +234,9 @@ export function productToPayload(p: {
     seller_tips: p.sellerTips,
     show_in_trending: p.showInTrending,
     trending_sort: p.trendingSort,
+    catalog_type: p.catalogType === "china" ? "china" : "standard",
+    show_on_landing: p.showOnLanding ?? false,
+    landing_sort: p.landingSort ?? 0,
   };
 }
 
@@ -228,6 +258,23 @@ export async function updateProduct(id: string, payload: ProductPayload): Promis
 export async function patchProductPriceAndMoq(id: string, pricePerPc: number, moq: number): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.from("products").update({ price_per_pc: pricePerPc, moq }).eq("id", id);
+  if (error) throw error;
+}
+
+/** Quick toggle from admin product table. */
+export async function patchProductLanding(
+  id: string,
+  showOnLanding: boolean,
+  landingSort?: number,
+): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("products")
+    .update({
+      show_on_landing: showOnLanding,
+      ...(landingSort !== undefined ? { landing_sort: landingSort } : {}),
+    })
+    .eq("id", id);
   if (error) throw error;
 }
 

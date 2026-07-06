@@ -1,12 +1,17 @@
 import { useState, useMemo } from "react";
-import { SlidersHorizontal, Search, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { SlidersHorizontal, Search, X, Package } from "lucide-react";
 import { categories } from "@/data/mockData";
 import { ProductCard } from "@/components/ProductCard";
 import { CartSidebar } from "@/components/CartSidebar";
 import { useMergedCatalog } from "@/hooks/useMergedCatalog";
+import { fetchChinaDeliveryPrices, deliveryPriceForCategory } from "@/lib/supabase/chinaDeliveryApi";
+
+type CatalogTab = "standard" | "china";
 
 export default function CataloguePage() {
   const { merged: products } = useMergedCatalog();
+  const [catalogTab, setCatalogTab] = useState<CatalogTab>("standard");
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -15,8 +20,26 @@ export default function CataloguePage() {
   const [priceRange, setPriceRange] = useState([50, 2000]);
   const [visibleCount, setVisibleCount] = useState(8);
 
+  const { data: chinaDeliveryPrices = [] } = useQuery({
+    queryKey: ["china-delivery-prices"],
+    queryFn: fetchChinaDeliveryPrices,
+    staleTime: 60_000,
+    enabled: catalogTab === "china",
+  });
+
+  const catalogProducts = useMemo(
+    () => products.filter(p => (p.catalogType ?? "standard") === catalogTab),
+    [products, catalogTab],
+  );
+
+  const priceBounds = useMemo(() => {
+    if (catalogProducts.length === 0) return [50, 2000];
+    const prices = catalogProducts.map(p => p.pricePerPc);
+    return [Math.floor(Math.min(...prices) / 10) * 10, Math.ceil(Math.max(...prices) / 10) * 10];
+  }, [catalogProducts]);
+
   const filtered = useMemo(() => {
-    let list = [...products];
+    let list = [...catalogProducts];
     if (activeCategory === "New this week") list = list.filter(p => p.tags.includes("new"));
     else if (activeCategory === "Trending") list = list.filter(p => p.tags.includes("hot"));
     else if (activeCategory !== "All") list = list.filter(p => p.category === activeCategory);
@@ -32,14 +55,57 @@ export default function CataloguePage() {
       list.sort((a, b) => score(b) - score(a));
     }
     return list;
-  }, [products, activeCategory, search, stockFilter, sortBy, priceRange]);
+  }, [catalogProducts, activeCategory, search, stockFilter, sortBy, priceRange]);
+
+  const switchTab = (tab: CatalogTab) => {
+    setCatalogTab(tab);
+    setActiveCategory("All");
+    setVisibleCount(8);
+    setPriceRange(tab === "china" ? priceBounds : [50, 2000]);
+  };
 
   return (
     <div className="p-4 md:p-8 animate-fade-in-up">
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-heading font-bold text-2xl md:text-3xl">Catalogue</h1>
-        <span className="text-sm text-muted-foreground">{products.length} products · Updated Thursday 10 Apr</span>
+        <span className="text-sm text-muted-foreground">{catalogProducts.length} products</span>
       </div>
+
+      {/* Catalog type tabs */}
+      <div className="flex gap-2 mb-4">
+        {([
+          { id: "standard" as const, label: "Local catalog", desc: "Ready stock in Pakistan" },
+          { id: "china" as const, label: "China catalog", desc: "Direct import · category delivery rates" },
+        ]).map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => switchTab(tab.id)}
+            className={`flex-1 md:flex-none md:min-w-[200px] p-4 rounded-card border text-left transition-colors ${
+              catalogTab === tab.id
+                ? "border-primary bg-primary/5 shadow-subtle"
+                : "border-border hover:border-primary/50"
+            }`}
+          >
+            <p className="font-heading font-semibold text-sm">{tab.label}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{tab.desc}</p>
+          </button>
+        ))}
+      </div>
+
+      {catalogTab === "china" && chinaDeliveryPrices.length > 0 && (
+        <div className="bg-olive/10 rounded-card border border-olive/20 p-4 mb-4">
+          <p className="text-xs font-medium text-olive mb-2 flex items-center gap-1.5">
+            <Package size={14} /> Delivery by category
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {chinaDeliveryPrices.map(d => (
+              <span key={d.id} className="text-xs bg-card border border-border rounded-pill px-3 py-1">
+                {d.category}: <strong>Rs {d.deliveryPrice.toLocaleString()}</strong>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Category tabs */}
       <div className="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4 md:mx-0 md:px-0 no-scrollbar">
@@ -102,19 +168,25 @@ export default function CataloguePage() {
             </div>
             <div>
               <label className="text-sm font-medium block mb-2">Price range: Rs {priceRange[0]} – Rs {priceRange[1]}</label>
-              <input type="range" min={50} max={2000} step={10} value={priceRange[1]} onChange={e => setPriceRange([priceRange[0], Number(e.target.value)])}
+              <input type="range" min={priceBounds[0]} max={priceBounds[1]} step={10} value={priceRange[1]} onChange={e => setPriceRange([priceRange[0], Number(e.target.value)])}
                 className="w-full accent-primary" />
             </div>
           </div>
           <div className="flex gap-3 mt-4">
-            <button onClick={() => { setStockFilter("all"); setSortBy("newest"); setPriceRange([50, 2000]); }} className="text-sm text-muted-foreground hover:text-foreground">Reset all</button>
+            <button onClick={() => { setStockFilter("all"); setSortBy("newest"); setPriceRange(priceBounds); }} className="text-sm text-muted-foreground hover:text-foreground">Reset all</button>
           </div>
         </div>
       )}
 
       {/* Product grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {filtered.slice(0, visibleCount).map(p => <ProductCard key={p.id} product={p} />)}
+        {filtered.slice(0, visibleCount).map(p => (
+          <ProductCard
+            key={p.id}
+            product={p}
+            deliveryPrice={catalogTab === "china" ? deliveryPriceForCategory(chinaDeliveryPrices, p.category) : null}
+          />
+        ))}
       </div>
 
       {visibleCount < filtered.length && (
@@ -127,7 +199,7 @@ export default function CataloguePage() {
 
       {filtered.length === 0 && (
         <div className="text-center py-16">
-          <p className="text-muted-foreground">No products found matching your filters.</p>
+          <p className="text-muted-foreground">No products found in this catalog.</p>
         </div>
       )}
 

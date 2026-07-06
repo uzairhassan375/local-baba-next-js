@@ -9,6 +9,7 @@ const adminLinks = [
   { label: "Applications", href: "/admin/applications", icon: UserCheck },
   { label: "Products", href: "/admin/products", icon: Package },
   { label: "Bulk price & MOQ", href: "/admin/products/bulk", icon: Table2 },
+  { label: "China delivery", href: "/admin/china-delivery", icon: Package },
   { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
   { label: "Members", href: "/admin/members", icon: Users },
   { label: "Announcements", href: "/admin/blasts", icon: MessageSquare },
@@ -34,7 +35,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 ? pathname === "/admin/products"
                 : l.href === "/admin/products/bulk"
                   ? pathname === "/admin/products/bulk"
-                  : pathname === l.href;
+                  : l.href === "/admin/china-delivery"
+                    ? pathname === "/admin/china-delivery"
+                    : pathname === l.href;
             return (
               <Link
                 key={l.href}

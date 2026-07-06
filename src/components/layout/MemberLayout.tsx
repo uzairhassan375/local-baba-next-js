@@ -8,8 +8,8 @@ const sidebarLinks = [
   { label: "Catalogue", href: "/catalogue", icon: Grid3X3 },
   { label: "My Orders", href: "/orders", icon: Package },
   { label: "Track Order", href: "/orders", icon: MapPin },
-  { label: "Community", href: "/dashboard", icon: Users },
-  { label: "My Profile", href: "/dashboard", icon: User },
+  { label: "Community", href: "/community", icon: Users },
+  { label: "My Profile", href: "/profile", icon: User },
 ];
 
 export function MemberLayout({ children }: { children: React.ReactNode }) {
@@ -21,7 +21,12 @@ export function MemberLayout({ children }: { children: React.ReactNode }) {
       <aside className="hidden md:flex flex-col w-[220px] bg-dark fixed top-16 bottom-0 z-40">
         <div className="flex-1 py-6">
           {sidebarLinks.map(l => {
-            const active = pathname === l.href;
+            const active =
+              pathname === l.href ||
+              (l.href === "/orders" && pathname?.startsWith("/orders")) ||
+              (l.href === "/catalogue" && pathname?.startsWith("/catalogue")) ||
+              (l.href === "/profile" && pathname?.startsWith("/profile")) ||
+              (l.href === "/community" && pathname?.startsWith("/community"));
             return (
               <Link
                 key={l.label}

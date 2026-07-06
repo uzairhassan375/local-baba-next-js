@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, X, ImagePlus, ChevronUp, ChevronDown, Star, FileSpreadsheet } from "lucide-react";
+import { Plus, Pencil, Trash2, X, ImagePlus, ChevronUp, ChevronDown, Star, FileSpreadsheet, LayoutTemplate } from "lucide-react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { ProductMedia } from "@/components/ProductMedia";
 import type { Product } from "@/data/mockData";
@@ -29,6 +29,7 @@ import {
   uploadProductImages,
   productToPayload,
   slugify,
+  patchProductLanding,
 } from "@/lib/supabase/productsApi";
 import { encodeCsv } from "@/lib/csv/simple";
 
@@ -53,6 +54,9 @@ function emptyForm(): {
   sellerTipsText: string;
   showInTrending: boolean;
   trendingSort: string;
+  showOnLanding: boolean;
+  landingSort: string;
+  catalogType: "standard" | "china";
   variants: VariantRow[];
   specs: SpecRow[];
   imageUrls: string[];
@@ -72,6 +76,9 @@ function emptyForm(): {
     sellerTipsText: "",
     showInTrending: true,
     trendingSort: "0",
+    showOnLanding: false,
+    landingSort: "0",
+    catalogType: "standard",
     variants: [{ type: "Option", options: "" }],
     specs: [{ label: "", value: "" }],
     imageUrls: [],
@@ -94,6 +101,9 @@ function productToForm(p: Product) {
     sellerTipsText: p.sellerTips.join("\n"),
     showInTrending: p.showInTrending ?? false,
     trendingSort: String(p.trendingSort ?? 0),
+    showOnLanding: p.showOnLanding ?? false,
+    landingSort: String(p.landingSort ?? 0),
+    catalogType: p.catalogType ?? "standard",
     variants:
       p.variants.length > 0
         ? p.variants.map(v => ({ type: v.type, options: v.options.join(", ") }))
@@ -136,6 +146,18 @@ export default function AdminProductsPage() {
     void queryClient.invalidateQueries({ queryKey: ["admin-products"] });
     void queryClient.invalidateQueries({ queryKey: ["db-catalog-products"] });
     void queryClient.invalidateQueries({ queryKey: ["trending-this-week"] });
+    void queryClient.invalidateQueries({ queryKey: ["landing-products"] });
+  };
+
+  const toggleLanding = async (p: Product) => {
+    const next = !p.showOnLanding;
+    try {
+      await patchProductLanding(p.id, next, p.landingSort ?? 0);
+      toast.success(next ? "Added to landing page" : "Removed from landing page");
+      invalidate();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Update failed");
+    }
   };
 
   const csvStockPriceMutation = useMutation({
@@ -354,6 +376,9 @@ export default function AdminProductsPage() {
         sellerTips,
         showInTrending: form.showInTrending,
         trendingSort: Number(form.trendingSort) || 0,
+        showOnLanding: form.showOnLanding,
+        landingSort: Number(form.landingSort) || 0,
+        catalogType: form.catalogType,
       };
 
       const payload = productToPayload(productShape);
@@ -381,7 +406,7 @@ export default function AdminProductsPage() {
           <div>
             <h1 className="font-heading font-bold text-2xl">Products</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Manage catalogue and “Trending this week” (toggle below). File uploads go to Bunny.net; only URLs are
+              Manage catalogue, “Trending this week”, and landing page picks. File uploads go to Bunny.net; only URLs are
               saved in Supabase.
             </p>
           </div>
@@ -476,6 +501,7 @@ export default function AdminProductsPage() {
                   <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Category</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Price</th>
                   <th className="text-left p-3 font-medium text-muted-foreground hidden lg:table-cell">Trending</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground hidden lg:table-cell">Landing</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
                   <th className="text-right p-3 font-medium text-muted-foreground">Actions</th>
                 </tr>
@@ -483,7 +509,7 @@ export default function AdminProductsPage() {
               <tbody>
                 {prods.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                    <td colSpan={7} className="p-8 text-center text-muted-foreground">
                       No products in Supabase yet. Add one or run the SQL migration in the Supabase dashboard.
                     </td>
                   </tr>
@@ -504,6 +530,21 @@ export default function AdminProductsPage() {
                       <td className="p-3 font-mono whitespace-nowrap">Rs {p.pricePerPc}</td>
                       <td className="p-3 hidden lg:table-cell text-muted-foreground">
                         {p.showInTrending ? "Yes" : "No"}
+                      </td>
+                      <td className="p-3 hidden lg:table-cell">
+                        <button
+                          type="button"
+                          onClick={() => void toggleLanding(p)}
+                          title={p.showOnLanding ? "Remove from landing page" : "Show on landing page"}
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-pill text-xs font-medium transition-colors ${
+                            p.showOnLanding
+                              ? "bg-primary/15 text-primary"
+                              : "bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                          }`}
+                        >
+                          <LayoutTemplate size={12} />
+                          {p.showOnLanding ? "On page" : "Add"}
+                        </button>
                       </td>
                       <td className="p-3">
                         <span
@@ -610,6 +651,17 @@ export default function AdminProductsPage() {
                   </div>
                 </div>
                 <div className="grid gap-2">
+                  <Label>Catalog</Label>
+                  <select
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={form.catalogType}
+                    onChange={e => setForm(f => ({ ...f, catalogType: e.target.value as "standard" | "china" }))}
+                  >
+                    <option value="standard">Local catalog</option>
+                    <option value="china">China catalog</option>
+                  </select>
+                </div>
+                <div className="grid gap-2">
                   <Label>Status</Label>
                   <select
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -634,7 +686,7 @@ export default function AdminProductsPage() {
                     </Label>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Label className="whitespace-nowrap">Sort priority</Label>
+                    <Label className="whitespace-nowrap">Trending sort</Label>
                     <Input
                       className="w-20 h-9"
                       value={form.trendingSort}
@@ -642,6 +694,31 @@ export default function AdminProductsPage() {
                       inputMode="numeric"
                     />
                   </div>
+                </div>
+
+                <div className="flex flex-wrap gap-4 items-center p-4 rounded-lg border border-border bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="landing"
+                      checked={form.showOnLanding}
+                      onCheckedChange={v => setForm(f => ({ ...f, showOnLanding: v === true }))}
+                    />
+                    <Label htmlFor="landing" className="font-normal cursor-pointer">
+                      Show on public landing page
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="whitespace-nowrap">Landing sort</Label>
+                    <Input
+                      className="w-20 h-9"
+                      value={form.landingSort}
+                      onChange={e => setForm(f => ({ ...f, landingSort: e.target.value }))}
+                      inputMode="numeric"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground w-full">
+                    Higher sort = shown first. Only active products appear on the homepage.
+                  </p>
                 </div>
 
                 <div className="space-y-2">

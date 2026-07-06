@@ -19,6 +19,11 @@ export interface Product {
   /** Set when loaded from Supabase admin catalogue */
   showInTrending?: boolean;
   trendingSort?: number;
+  /** standard = local catalog, china = China import catalog */
+  catalogType?: "standard" | "china";
+  /** Shown on public landing page (admin-curated) */
+  showOnLanding?: boolean;
+  landingSort?: number;
 }
 
 export interface Order {

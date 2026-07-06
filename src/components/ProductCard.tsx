@@ -4,14 +4,17 @@ import { useState } from "react";
 import type { Product } from "@/data/mockData";
 import { ProductMedia } from "@/components/ProductMedia";
 import { useCart } from "@/contexts/CartContext";
+import { useFavorites } from "@/contexts/FavoritesContext";
 
 interface Props {
   product: Product;
+  deliveryPrice?: number | null;
 }
 
-export function ProductCard({ product }: Props) {
+export function ProductCard({ product, deliveryPrice }: Props) {
   const [qty, setQty] = useState(product.moq);
-  const [wishlisted, setWishlisted] = useState(false);
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const wishlisted = isFavorite(product.id);
   const { addItem } = useCart();
   const isSoldOut = product.status === "sold_out";
 
@@ -52,9 +55,9 @@ export function ProductCard({ product }: Props) {
             </span>
           )}
           <button
-            onClick={e => { e.preventDefault(); e.stopPropagation(); setWishlisted(!wishlisted); }}
+            onClick={e => { e.preventDefault(); e.stopPropagation(); toggleFavorite(product.id); }}
             className="absolute top-2 right-2 w-8 h-8 rounded-full bg-card/80 flex items-center justify-center"
-            aria-label="Wishlist"
+            aria-label={wishlisted ? "Remove from favourites" : "Add to favourites"}
           >
             <Heart size={16} className={wishlisted ? "fill-primary text-primary" : "text-muted-foreground"} />
           </button>
@@ -70,6 +73,9 @@ export function ProductCard({ product }: Props) {
           <span className="text-xs text-muted-foreground">Min. {product.moq} pcs</span>
         </div>
         <p className="text-xs text-muted-foreground">= Rs {(product.pricePerPc * qty).toLocaleString()}</p>
+        {deliveryPrice != null && (
+          <p className="text-[10px] text-olive font-medium">Delivery: Rs {deliveryPrice.toLocaleString()}</p>
+        )}
 
         {!isSoldOut ? (
           <>

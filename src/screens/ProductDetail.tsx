@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Heart, Truck, MessageCircle, Shield, ChevronDown, ChevronUp } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
+import { useFavorites } from "@/contexts/FavoritesContext";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductMedia } from "@/components/ProductMedia";
 import { CartSidebar } from "@/components/CartSidebar";
@@ -14,10 +15,11 @@ export default function ProductDetailPage() {
   const { merged, isLoading } = useMergedCatalog();
   const product = useMemo(() => merged.find(p => p.slug === slug), [merged, slug]);
   const { addItem } = useCart();
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const wishlisted = isFavorite(product?.id ?? "");
   const [qty, setQty] = useState(30);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const [mainImage, setMainImage] = useState(0);
-  const [wishlisted, setWishlisted] = useState(false);
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
 
   useEffect(() => {
@@ -143,8 +145,8 @@ export default function ProductDetailPage() {
               <button onClick={handleAdd} className="w-full h-[52px] rounded-lg bg-primary text-primary-foreground font-heading font-semibold text-lg hover:bg-accent-hover transition-all active:scale-[0.97]">
                 Add to cart
               </button>
-              <button onClick={() => setWishlisted(!wishlisted)} className="w-full h-11 rounded-lg border border-border flex items-center justify-center gap-2 text-sm hover:bg-muted transition-colors">
-                <Heart size={16} className={wishlisted ? "fill-primary text-primary" : ""} /> Save to wishlist
+              <button onClick={() => toggleFavorite(product.id)} className="w-full h-11 rounded-lg border border-border flex items-center justify-center gap-2 text-sm hover:bg-muted transition-colors">
+                <Heart size={16} className={wishlisted ? "fill-primary text-primary" : ""} /> {wishlisted ? "Saved to favourites" : "Save to favourites"}
               </button>
               <a href={`https://wa.me/923001234567?text=${waText}`} target="_blank" rel="noopener noreferrer" className="block text-center text-sm text-muted-foreground hover:text-primary">
                 Prefer to order on WhatsApp? →

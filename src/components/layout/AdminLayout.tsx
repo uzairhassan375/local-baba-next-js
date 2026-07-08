@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Users, Package, ShoppingCart, UserCheck, MessageSquare, LogOut, Table2 } from "lucide-react";
+import { LayoutDashboard, Users, Package, ShoppingCart, UserCheck, MessageSquare, LogOut, Table2, LayoutTemplate } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
@@ -9,6 +9,7 @@ const adminLinks = [
   { label: "Applications", href: "/admin/applications", icon: UserCheck },
   { label: "Products", href: "/admin/products", icon: Package },
   { label: "Bulk price & MOQ", href: "/admin/products/bulk", icon: Table2 },
+  { label: "Landing page", href: "/admin/landing-products", icon: LayoutTemplate },
   { label: "China delivery", href: "/admin/china-delivery", icon: Package },
   { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
   { label: "Members", href: "/admin/members", icon: Users },
@@ -35,9 +36,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 ? pathname === "/admin/products"
                 : l.href === "/admin/products/bulk"
                   ? pathname === "/admin/products/bulk"
-                  : l.href === "/admin/china-delivery"
-                    ? pathname === "/admin/china-delivery"
-                    : pathname === l.href;
+                  : l.href === "/admin/landing-products"
+                    ? pathname === "/admin/landing-products"
+                    : l.href === "/admin/china-delivery"
+                      ? pathname === "/admin/china-delivery"
+                      : pathname === l.href;
             return (
               <Link
                 key={l.href}

@@ -73,6 +73,25 @@
   }
 }
 
+/* Dark theme scope for the public landing page (design uses black + orange). */
+.theme-landing {
+  --background: 0 0% 4%;
+  --foreground: 0 0% 96%;
+  --card: 0 0% 8%;
+  --card-foreground: 0 0% 96%;
+  --popover: 0 0% 8%;
+  --popover-foreground: 0 0% 96%;
+  --secondary: 0 0% 10%;
+  --secondary-foreground: 0 0% 96%;
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 62%;
+  --border: 0 0% 18%;
+  --input: 0 0% 18%;
+  --accent: 24 90% 56%;
+  --accent-foreground: 0 0% 100%;
+  --ring: 24 90% 56%;
+}
+
 /* Marquee animation */
 @keyframes marquee {
   0% {

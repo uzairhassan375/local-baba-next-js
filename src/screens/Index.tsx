@@ -1,498 +1,762 @@
-import { useState } from "react";
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Tag,
-  PackageOpen,
+  ArrowUpRight,
   Zap,
-  Flame,
-  CheckCircle,
-  ArrowRight,
   Truck,
-  Shield,
-  Users,
-  Facebook,
-  Instagram,
-  MessageCircle,
-  Sparkles,
+  ShieldCheck,
+  Search,
   Package,
-  Globe,
+  Sparkles,
+  Globe2,
 } from "lucide-react";
-import { PublicNavbar } from "@/components/layout/PublicNavbar";
-import { Footer } from "@/components/layout/Footer";
-import { FeaturedProductsSection } from "@/components/FeaturedProductsSection";
 
-const marqueeItems = [
-  "30 pcs minimum",
-  "48hr dispatch",
-  "Direct importer rates",
-  "Live WhatsApp tracking",
-  "New drops every Thursday",
-  "No more broadcast groups",
-  "Free to join",
-  "Verified sellers only",
+import { fetchLandingProducts } from "@/lib/supabase/productsApi";
+import { ProductMedia } from "@/components/ProductMedia";
+import type { Product } from "@/data/mockData";
+
+const marquee = [
+  "30 PCS MOQ",
+  "48HR DISPATCH",
+  "DIRECT IMPORTER RATES",
+  "LIVE WHATSAPP TRACKING",
+  "NEW DROPS EVERY THURSDAY",
+  "VERIFIED SELLERS ONLY",
+  "CHINA → YOUR DOOR",
+  "NO BROADCAST GROUPS",
 ];
 
-const usps = [
-  {
-    icon: Tag,
-    title: "Best rates in market",
-    desc: "We buy direct from importers — zero middlemen, zero markup chain. Our prices beat Hall Road.",
-    accent: "bg-primary/10 text-primary",
-  },
-  {
-    icon: PackageOpen,
-    title: "Start with just 30 pieces",
-    desc: "Test a product before you scale. MOQ of 30 pcs per SKU. No more getting stuck with 500 units of dead stock.",
-    accent: "bg-olive/15 text-olive",
-  },
-  {
-    icon: Zap,
-    title: "48-hour dispatch, tracked",
-    desc: "Every order dispatched within 48 hours. Live tracking link sent to your WhatsApp automatically.",
-    accent: "bg-primary/10 text-primary",
-  },
-  {
-    icon: Flame,
-    title: "Thursday drops — before it peaks",
-    desc: "New trending products curated every Thursday. We track TikTok, Daraz, and Instagram so you don't have to.",
-    accent: "bg-amber-500/10 text-amber-700",
-  },
-  {
-    icon: CheckCircle,
-    title: "One login. Zero chaos.",
-    desc: "Replace 20 broadcast groups with one clean dashboard. All your orders, tracking, and invoices in one place.",
-    accent: "bg-success/10 text-success",
-  },
-];
-
-const steps = [
-  {
-    num: "01",
-    title: "Register in 60 seconds",
-    desc: "Create an account with email and password, plus a short profile — name, WhatsApp, and what you sell.",
-    icon: Users,
-  },
-  {
-    num: "02",
-    title: "Start immediately",
-    desc: "Your account is active as soon as you finish registration — sign in and use the member dashboard right away.",
-    icon: Sparkles,
-  },
-  {
-    num: "03",
-    title: "Order and track instantly",
-    desc: "Browse hundreds of trending products, place bulk orders from 30 pcs, and get live delivery updates on WhatsApp.",
-    icon: Truck,
-  },
-];
-
-const testimonials = [
-  {
-    quote: "Finally a wholesaler that actually replies. I placed an order at 11pm and had tracking by noon the next day.",
-    name: "Ayesha R.",
-    type: "Instagram reseller",
-    city: "Lahore",
-  },
-  {
-    quote: "Prices are genuinely lower than Hall Road. I've saved almost Rs 40,000 in three months.",
-    name: "Usman K.",
-    type: "Daraz seller",
-    city: "Karachi",
-  },
-  {
-    quote: "The Thursday drop is the first thing I open every week. It feels like having an insider.",
-    name: "Fatima M.",
-    type: "Boutique owner",
-    city: "Islamabad",
-  },
-];
-
-const trustStats = [
-  { value: "500+", label: "Active sellers" },
-  { value: "48hr", label: "Dispatch time" },
-  { value: "30 pcs", label: "Minimum order" },
-  { value: "22%", label: "Avg. savings" },
-];
-
-const SOCIAL_LINKS = [
-  {
-    name: "Facebook",
-    href: "https://www.facebook.com/share/1D3mYsssTj/?mibextid=wwXIfr",
-    icon: Facebook,
-    color: "bg-[#1877F2]",
-  },
-  {
-    name: "Instagram",
-    href: "https://www.instagram.com/localbaba0?igsh=MXVoMTQ1am01OW9zeQ%3D%3D&utm_source=qr",
-    icon: Instagram,
-    color: "bg-gradient-to-br from-[#f09433] via-[#e6683c] to-[#bc1888]",
-  },
+const categories = [
+  { name: "Electronics", count: 214 },
+  { name: "Beauty & Skin", count: 187 },
+  { name: "Home & Kitchen", count: 156 },
+  { name: "Fashion & Bags", count: 142 },
+  { name: "Footwear", count: 98 },
+  { name: "Kids & Toys", count: 74 },
+  { name: "Fitness", count: 61 },
+  { name: "Content Creator", count: 43 },
 ];
 
 export default function LandingPage() {
-  const [sliderVal, setSliderVal] = useState(50000);
-  const marketCost = sliderVal;
-  const ourCost = Math.round(sliderVal * 0.78);
-  const savings = marketCost - ourCost;
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ["landing-products"],
+    queryFn: fetchLandingProducts,
+    staleTime: 60_000,
+  });
 
   return (
-    <div className="min-h-screen bg-background">
-      <PublicNavbar />
+    <main className="theme-landing min-h-screen bg-background text-foreground font-body overflow-x-hidden">
+      <Nav />
+      <Hero products={products} />
+      <Marquee />
+      <TrendingDrop products={products} isLoading={isLoading} />
+      <Categories />
+      <Sourcing />
+      <Process />
+      <Savings />
+      <Testimonials />
+      <CTA />
+      <Footer />
+    </main>
+  );
+}
 
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-dark pt-10 pb-0 md:pt-16">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/8 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-72 h-72 bg-olive/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/4 pointer-events-none" />
+function Nav() {
+  return (
+    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
+      <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-4">
+        <Link href="/" className="flex items-center gap-2">
+          <span className="grid h-8 w-8 place-items-center bg-primary font-mono text-sm font-bold text-primary-foreground">
+            LB
+          </span>
+          <span className="font-heading text-lg font-bold tracking-tight">THE LOCAL BABA</span>
+        </Link>
+        <nav className="hidden items-center gap-8 font-mono text-xs uppercase tracking-widest text-muted-foreground md:flex">
+          <a href="#catalog" className="hover:text-foreground">
+            Catalog
+          </a>
+          <a href="#sourcing" className="hover:text-foreground">
+            Sourcing
+          </a>
+          <a href="#how" className="hover:text-foreground">
+            How it works
+          </a>
+          <a href="#savings" className="hover:text-foreground">
+            Pricing
+          </a>
+        </nav>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/login"
+            className="hidden font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground sm:inline"
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/apply"
+            className="group inline-flex items-center gap-1.5 bg-primary px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-primary-foreground transition hover:bg-accent-hover"
+          >
+            Register free
+            <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </Link>
+        </div>
+      </div>
+    </header>
+  );
+}
 
-        <div className="container relative">
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center pb-12 md:pb-16">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-pill bg-primary/15 border border-primary/25 text-primary text-xs font-semibold uppercase tracking-wider mb-6">
-                <Sparkles size={14} />
-                Pakistan&apos;s B2B wholesale platform
-              </div>
-              <h1 className="font-heading font-bold text-[36px] sm:text-[44px] md:text-[56px] lg:text-[60px] leading-[1.08] text-primary-foreground">
-                Wholesale,{" "}
-                <span className="text-primary">the way it should be.</span>
-              </h1>
-              <p className="text-muted-foreground text-lg md:text-xl mt-5 max-w-[520px] leading-relaxed">
-                Direct from importers. MOQ of just 30 pcs. Local stock and China catalog — delivered to your door in 48 hours.
-              </p>
-              <div className="flex flex-wrap gap-3 mt-8">
-                <Link
-                  href="/apply"
-                  className="group inline-flex items-center gap-2 h-[52px] px-7 rounded-pill bg-primary text-primary-foreground font-heading font-semibold hover:bg-accent-hover transition-all hover:scale-[1.02] active:scale-[0.97] shadow-lg shadow-primary/20"
-                >
-                  Register free
-                  <ArrowRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-                <a
-                  href="#how-it-works"
-                  className="inline-flex items-center h-[52px] px-7 rounded-pill border border-primary-foreground/25 text-primary-foreground font-heading font-semibold hover:bg-primary-foreground/8 transition-colors"
-                >
-                  See how it works
-                </a>
-              </div>
-              <div className="flex flex-wrap gap-4 mt-8 pt-8 border-t border-primary-foreground/10">
-                {[
-                  { icon: Truck, text: "48hr dispatch" },
-                  { icon: Shield, text: "Verified sellers" },
-                  { icon: Package, text: "30 pcs MOQ" },
-                ].map(item => (
-                  <span key={item.text} className="flex items-center gap-2 text-sm text-primary-foreground/70">
-                    <item.icon size={16} className="text-primary shrink-0" />
-                    {item.text}
-                  </span>
-                ))}
-              </div>
-            </div>
+function Hero({ products }: { products: Product[] }) {
+  const previewItems = products.slice(0, 4);
 
-            {/* Hero card */}
-            <div className="relative">
-              <div className="bg-card/5 backdrop-blur-sm border border-primary-foreground/10 rounded-card p-6 md:p-8 border-l-4 border-l-primary shadow-2xl">
-                <p className="text-xs uppercase tracking-widest text-primary font-semibold mb-4">Why sellers switch</p>
-                <div className="grid grid-cols-2 gap-4">
-                  {trustStats.map(stat => (
-                    <div key={stat.label} className="bg-dark/50 rounded-xl p-4 border border-primary-foreground/8">
-                      <p className="font-heading font-bold text-2xl md:text-3xl text-primary">{stat.value}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-6 p-4 rounded-xl bg-olive/15 border border-olive/25">
-                  <p className="text-sm text-primary-foreground leading-relaxed">
-                    <span className="font-semibold text-olive">New:</span> Browse local stock and China import catalog separately — with category-wise delivery rates.
-                  </p>
-                </div>
-              </div>
-            </div>
+  return (
+    <section className="relative border-b border-border/60">
+      <div className="pointer-events-none absolute inset-0">
+        <img
+          src="/hero.jpg"
+          alt=""
+          width={1600}
+          height={1200}
+          className="h-full w-full object-cover opacity-40"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/85 to-background/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+        <div className="absolute -top-32 right-0 h-[560px] w-[560px] rounded-full bg-primary/15 blur-3xl" />
+      </div>
+      <div className="relative mx-auto grid max-w-[1400px] gap-10 px-6 pt-12 pb-10 lg:grid-cols-12 lg:pt-16 lg:pb-14">
+        <div className="lg:col-span-8">
+          <div className="mb-6 inline-flex items-center gap-2 border border-primary/40 bg-primary/10 px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-primary">
+            <span className="h-1.5 w-1.5 animate-pulse bg-primary" />
+            B2B sourcing · Direct from importers
+          </div>
+          <h1 className="font-heading text-4xl font-bold leading-[1.05] tracking-tight md:text-5xl lg:text-6xl">
+            Wholesale,
+            <br />
+            <span className="text-primary">the way</span>
+            <br />
+            it should be.
+          </h1>
+          <p className="mt-8 max-w-xl text-lg text-muted-foreground md:text-xl">
+            The reseller&apos;s sourcing engine. Trending e-commerce products from China, unpacked
+            into B2B lots you can actually order — from just 30 pieces, delivered in 48 hours.
+          </p>
+          <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/apply"
+              className="group inline-flex items-center justify-center gap-2 bg-primary px-6 py-4 font-mono text-sm font-bold uppercase tracking-widest text-primary-foreground transition hover:bg-accent-hover"
+            >
+              Register free — 60s
+              <ArrowUpRight className="h-4 w-4 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </Link>
+            <a
+              href="#catalog"
+              className="inline-flex items-center justify-center gap-2 border border-border px-6 py-4 font-mono text-sm font-bold uppercase tracking-widest text-foreground transition hover:border-primary hover:text-primary"
+            >
+              Browse catalog
+            </a>
+          </div>
+          <div className="mt-8 grid max-w-2xl grid-cols-3 gap-6 border-t border-border/60 pt-5">
+            <Stat kpi="500+" label="Verified resellers" />
+            <Stat kpi="1,200" label="Live SKUs" />
+            <Stat kpi="22%" label="Avg. savings" />
           </div>
         </div>
+        <aside className="lg:col-span-4">
+          <div className="border border-border/80 bg-secondary/60 p-6 backdrop-blur">
+            <div className="mb-4 flex items-center justify-between font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+              <span>Live sourcing</span>
+              <span className="text-primary">● online</span>
+            </div>
+            <div className="mb-4 flex items-center gap-2 border border-border bg-background px-3 py-3">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <input
+                placeholder="Search a product, category or SKU"
+                className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            <ul className="space-y-3 font-mono text-xs">
+              {previewItems.length === 0
+                ? Array.from({ length: 4 }).map((_, i) => (
+                    <li
+                      key={i}
+                      className="flex items-center justify-between border-b border-border/50 pb-3"
+                    >
+                      <span className="inline-block h-3 w-40 animate-pulse bg-muted" />
+                      <span className="inline-block h-3 w-12 animate-pulse bg-muted" />
+                    </li>
+                  ))
+                : previewItems.map(p => (
+                    <li
+                      key={p.id}
+                      className="flex items-center justify-between border-b border-border/50 pb-3"
+                    >
+                      <span>
+                        <span className="text-muted-foreground">{p.sku}</span>
+                        <span className="mx-2 text-border">/</span>
+                        <span className="text-foreground">{p.name}</span>
+                      </span>
+                      <span className="text-primary">Rs {p.pricePerPc.toLocaleString()}</span>
+                    </li>
+                  ))}
+            </ul>
+            <p className="mt-5 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+              Next drop → Thursday · 09:00 PKT
+            </p>
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
+}
 
-        {/* Marquee */}
-        <div className="border-t border-primary-foreground/10 py-4 overflow-hidden bg-dark/80">
-          <div className="animate-marquee whitespace-nowrap flex gap-0">
-            {[...marqueeItems, ...marqueeItems].map((item, i) => (
-              <span key={i} className="text-primary-foreground/60 text-sm mx-4 inline-flex items-center gap-4">
-                {item}
-                <span className="text-primary">·</span>
+function useCountUp(target: number, duration = 1600) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduced || target === 0) {
+      setValue(target);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(Math.round(target * eased));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return value;
+}
+
+function Stat({ kpi, label }: { kpi: string; label: string }) {
+  const match = kpi.match(/^([^\d]*)([\d,.]+)(.*)$/);
+  const prefix = match?.[1] ?? "";
+  const numeric = match ? Number(match[2].replace(/,/g, "")) : 0;
+  const suffix = match?.[3] ?? "";
+  const current = useCountUp(numeric);
+  const formatted =
+    numeric >= 1000 ? current.toLocaleString() : String(current);
+  return (
+    <div>
+      <div className="font-heading text-3xl font-bold text-foreground md:text-4xl tabular-nums">
+        {prefix}
+        {formatted}
+        {suffix}
+      </div>
+      <div className="mt-1 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function Marquee() {
+  return (
+    <div className="border-b border-border/60 bg-primary text-primary-foreground">
+      <div className="flex gap-8 overflow-hidden py-3 font-mono text-xs font-bold uppercase tracking-widest">
+        <div className="animate-marquee flex shrink-0 gap-8 whitespace-nowrap pl-8">
+          {[...marquee, ...marquee].map((m, i) => (
+            <span key={i} className="flex items-center gap-8">
+              {m}
+              <span aria-hidden>◆</span>
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TrendingDrop({ products, isLoading }: { products: Product[]; isLoading: boolean }) {
+  return (
+    <section id="catalog" className="border-b border-border/60">
+      <div className="mx-auto max-w-[1400px] px-6 py-12 md:py-16">
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <div className="mb-3 font-mono text-xs uppercase tracking-widest text-primary">
+              Curated drop · Featured picks
+            </div>
+            <h2 className="max-w-2xl font-heading text-3xl font-bold leading-tight tracking-tight md:text-4xl lg:text-5xl">
+              Trending on TikTok. Priced for your shelf.
+            </h2>
+          </div>
+          <Link
+            href="/apply"
+            className="group inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
+          >
+            View full catalog
+            <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </Link>
+        </div>
+
+        {isLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="border border-border bg-muted/30">
+                <div className="aspect-[4/3] animate-pulse bg-muted" />
+                <div className="space-y-3 p-5">
+                  <div className="h-3 w-24 animate-pulse bg-muted" />
+                  <div className="h-5 w-40 animate-pulse bg-muted" />
+                  <div className="h-6 w-20 animate-pulse bg-muted" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : products.length === 0 ? (
+          <div className="border border-dashed border-border p-12 text-center">
+            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+              No products selected for the landing page yet.
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Admins can curate this drop from{" "}
+              <Link href="/admin/landing-products" className="text-primary underline">
+                Admin → Landing page
+              </Link>
+              .
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {products.map(p => (
+              <LandingDropCard key={p.id} product={p} />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function LandingDropCard({ product }: { product: Product }) {
+  const margin =
+    product.marketRate > product.pricePerPc && product.marketRate > 0
+      ? Math.round(((product.marketRate - product.pricePerPc) / product.marketRate) * 100)
+      : 0;
+
+  const tag = product.tags.includes("hot")
+    ? "TRENDING"
+    : product.tags.includes("new")
+      ? "NEW"
+      : product.tags.includes("featured")
+        ? "FEATURED"
+        : product.catalogType === "china"
+          ? "CHINA"
+          : "LOCAL";
+
+  return (
+    <article className="group relative border border-border bg-secondary/40 transition hover:border-primary">
+      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+        <ProductMedia
+          src={product.images[0]}
+          alt={product.name}
+          loading="lazy"
+          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+        />
+        <span className="absolute left-3 top-3 bg-primary px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-primary-foreground">
+          {tag}
+        </span>
+        <span className="absolute right-3 top-3 border border-border bg-background/80 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground backdrop-blur">
+          MOQ {product.moq}
+        </span>
+      </div>
+      <div className="p-5">
+        <div className="mb-2 flex items-center justify-between font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+          <span>{product.category}</span>
+          {margin > 0 && <span className="text-primary">+{margin}% margin</span>}
+        </div>
+        <h3 className="font-heading text-xl font-bold">{product.name}</h3>
+        <div className="mt-4 flex items-end justify-between border-t border-border/60 pt-4">
+          <div>
+            <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+              Unit / wholesale
+            </div>
+            <div className="font-heading text-2xl font-bold text-primary">
+              Rs {product.pricePerPc.toLocaleString()}
+            </div>
+          </div>
+          {product.marketRate > product.pricePerPc && (
+            <div className="text-right">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                Retail
+              </div>
+              <div className="font-mono text-sm text-muted-foreground line-through">
+                Rs {product.marketRate.toLocaleString()}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function Categories() {
+  return (
+    <section className="border-b border-border/60 bg-secondary/30">
+      <div className="mx-auto max-w-[1400px] px-6 py-12 md:py-16">
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+          <h2 className="font-heading text-2xl font-bold tracking-tight md:text-3xl">
+            Browse by category
+          </h2>
+          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+            1,200+ SKUs · restocked weekly
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+          {categories.map(c => (
+            <a
+              key={c.name}
+              href="#catalog"
+              className="group flex items-center justify-between bg-background p-6 transition hover:bg-primary hover:text-primary-foreground"
+            >
+              <div>
+                <div className="font-heading text-lg font-bold">{c.name}</div>
+                <div className="mt-1 font-mono text-[11px] uppercase tracking-widest text-muted-foreground group-hover:text-primary-foreground/80">
+                  {c.count} SKUs
+                </div>
+              </div>
+              <ArrowUpRight className="h-5 w-5 opacity-40 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100" />
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Sourcing() {
+  const items = [
+    { icon: Globe2, t: "Sourced in China", d: "500+ factories vetted across Yiwu, Guangzhou, Shenzhen." },
+    { icon: Sparkles, t: "Curated on trend", d: "We track TikTok, Daraz & IG so you get products before they peak." },
+    { icon: Package, t: "Broken into B2B lots", d: "Container loads split into 30-piece MOQs. Test before you scale." },
+    { icon: Truck, t: "Landed in Pakistan", d: "Duty-paid, quality-checked, in-stock. 48-hour dispatch nationwide." },
+  ];
+  return (
+    <section id="sourcing" className="border-b border-border/60">
+      <div className="mx-auto max-w-[1400px] px-6 py-14 md:py-20">
+        <div className="grid gap-12 lg:grid-cols-12">
+          <div className="lg:col-span-5">
+            <div className="mb-4 font-mono text-xs uppercase tracking-widest text-primary">
+              The sourcing layer
+            </div>
+            <h2 className="font-heading text-3xl font-bold leading-tight tracking-tight md:text-4xl lg:text-5xl">
+              We speak Yiwu.
+              <br />
+              You speak <span className="text-primary">Instagram.</span>
+            </h2>
+            <p className="mt-6 max-w-md text-muted-foreground">
+              Our team lives on the ground in Guangzhou, Yiwu and Shenzhen. We scout what&apos;s
+              about to trend, negotiate importer pricing, verify the factory, and land the SKU in
+              Pakistan — so you can order it like a normal e-commerce product.
+            </p>
+          </div>
+          <div className="lg:col-span-7">
+            <ol className="grid gap-px bg-border sm:grid-cols-2">
+              {items.map(({ icon: Icon, t, d }) => (
+                <li key={t} className="bg-background p-8">
+                  <Icon className="h-6 w-6 text-primary" />
+                  <div className="mt-6 font-heading text-xl font-bold">{t}</div>
+                  <p className="mt-2 text-sm text-muted-foreground">{d}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Process() {
+  const steps = [
+    { n: "01", t: "Register in 60 seconds", d: "Email, WhatsApp, and what you sell. No documents, no approval wait." },
+    { n: "02", t: "Browse the drop", d: "Live catalog with wholesale pricing, margin math, and stock counters." },
+    { n: "03", t: "Order from 30 pcs", d: "Test-lot pricing on every SKU. Reorder in bulk once it moves." },
+    { n: "04", t: "Track on WhatsApp", d: "Dispatch inside 48 hours with a live tracking link to your phone." },
+  ];
+  return (
+    <section id="how" className="border-b border-border/60 bg-secondary/30">
+      <div className="mx-auto max-w-[1400px] px-6 py-14 md:py-18">
+        <div className="mb-10 max-w-3xl">
+          <div className="mb-3 font-mono text-xs uppercase tracking-widest text-primary">
+            The process
+          </div>
+          <h2 className="font-heading text-3xl font-bold leading-tight tracking-tight md:text-4xl lg:text-5xl">
+            From signup to shipped in one afternoon.
+          </h2>
+        </div>
+        <div className="grid gap-px bg-border md:grid-cols-4">
+          {steps.map(s => (
+            <div key={s.n} className="bg-background p-8">
+              <div className="font-mono text-xs uppercase tracking-widest text-primary">{s.n}</div>
+              <div className="mt-8 font-heading text-2xl font-bold leading-tight">{s.t}</div>
+              <p className="mt-3 text-sm text-muted-foreground">{s.d}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Savings() {
+  const perks: Array<[typeof Zap, string]> = [
+    [Zap, "No middlemen"],
+    [ShieldCheck, "Verified stock"],
+    [Truck, "48h dispatch"],
+  ];
+  return (
+    <section id="savings" className="border-b border-border/60">
+      <div className="mx-auto grid max-w-[1400px] gap-12 px-6 py-14 md:py-20 lg:grid-cols-2">
+        <div>
+          <div className="mb-3 font-mono text-xs uppercase tracking-widest text-primary">
+            Real margin math
+          </div>
+          <h2 className="font-heading text-3xl font-bold leading-tight tracking-tight md:text-4xl lg:text-5xl">
+            See how much
+            <br />
+            you actually save.
+          </h2>
+          <p className="mt-6 max-w-md text-muted-foreground">
+            Our direct-importer model saves most resellers 15–30% per order versus Hall Road, Bolton
+            Market and traditional broadcast wholesalers.
+          </p>
+          <div className="mt-10 flex flex-wrap gap-3">
+            {perks.map(([Icon, label]) => (
+              <span
+                key={label}
+                className="inline-flex items-center gap-2 border border-border px-3 py-2 font-mono text-[11px] uppercase tracking-widest text-muted-foreground"
+              >
+                <Icon className="h-3.5 w-3.5 text-primary" /> {label}
               </span>
             ))}
           </div>
         </div>
-      </section>
-
-      {/* Featured products (admin-curated) */}
-      <FeaturedProductsSection />
-
-      {/* Catalog types */}
-      <section className="py-14 md:py-18 border-b border-border">
-        <div className="container">
-          <div className="text-center mb-10">
-            <p className="section-label mb-3">TWO CATALOGS</p>
-            <h2 className="font-heading font-bold text-3xl md:text-[40px] text-foreground">Local stock & China imports</h2>
-            <p className="text-muted-foreground text-lg mt-3 max-w-[560px] mx-auto">
-              Order ready stock from Pakistan or source direct from China — all in one member dashboard.
-            </p>
+        <div className="border border-border bg-secondary/40 p-8 md:p-10">
+          <div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+            Monthly order value
           </div>
-          <div className="grid md:grid-cols-2 gap-5 max-w-4xl mx-auto">
-            {[
-              {
-                icon: Package,
-                title: "Local catalog",
-                desc: "Ready stock in Pakistan. Fast dispatch, trending Thursday drops, and prices that beat Hall Road.",
-                tag: "48hr dispatch",
-              },
-              {
-                icon: Globe,
-                title: "China catalog",
-                desc: "Direct import products with category-wise delivery pricing. Scale your margins on high-demand SKUs.",
-                tag: "Category delivery rates",
-              },
-            ].map(cat => (
-              <div
-                key={cat.title}
-                className="group bg-card border border-border rounded-card p-7 hover:border-primary hover:shadow-card transition-all"
-              >
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/15 transition-colors">
-                  <cat.icon size={24} className="text-primary" />
-                </div>
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-pill">
-                  {cat.tag}
-                </span>
-                <h3 className="font-heading font-bold text-xl mt-3 mb-2">{cat.title}</h3>
-                <p className="text-muted-foreground text-[15px] leading-relaxed">{cat.desc}</p>
-              </div>
-            ))}
+          <div className="mt-2 font-heading text-5xl font-bold">Rs 50,000</div>
+          <div className="mt-10 space-y-6">
+            <Bar label="Typical market cost" amount="Rs 50,000" width="100%" tone="muted" />
+            <Bar label="Your cost with LocalBaba" amount="Rs 39,000" width="78%" tone="primary" />
+          </div>
+          <div className="mt-10 border-t border-border/60 pt-6">
+            <div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+              You save
+            </div>
+            <div className="mt-2 font-heading text-4xl font-bold text-primary md:text-5xl">
+              Rs 11,000 / month
+            </div>
+            <div className="mt-1 font-mono text-xs text-muted-foreground">
+              Rs 132,000 per year · 22% average
+            </div>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
+  );
+}
 
-      {/* USP Section */}
-      <section id="how-it-works" className="py-16 md:py-24">
-        <div className="container">
-          <div className="text-center mb-12">
-            <p className="section-label mb-3">WHY LOCAL BABA</p>
-            <h2 className="font-heading font-bold text-3xl md:text-[40px] text-foreground">
-              Everything you hated about wholesale — fixed.
-            </h2>
-            <p className="text-muted-foreground text-lg mt-3 max-w-[600px] mx-auto">
-              We built this because we were frustrated too.
-            </p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {usps.map((usp, i) => (
-              <div
-                key={i}
-                className={`group bg-card border border-border rounded-card p-7 hover:border-primary/50 hover:shadow-card transition-all animate-fade-in-up ${
-                  i === 4 ? "sm:col-span-2 lg:col-span-1" : ""
-                }`}
-                style={{ animationDelay: `${i * 80}ms` }}
-              >
-                <div className={`w-12 h-12 rounded-xl ${usp.accent} flex items-center justify-center mb-5`}>
-                  <usp.icon size={22} />
-                </div>
-                <h3 className="font-heading font-bold text-lg mb-2 group-hover:text-primary transition-colors">{usp.title}</h3>
-                <p className="text-muted-foreground text-[15px] leading-relaxed">{usp.desc}</p>
-              </div>
-            ))}
-          </div>
+function Bar({
+  label,
+  amount,
+  width,
+  tone,
+}: {
+  label: string;
+  amount: string;
+  width: string;
+  tone: "muted" | "primary";
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between font-mono text-xs">
+        <span className="uppercase tracking-widest text-muted-foreground">{label}</span>
+        <span className="text-foreground">{amount}</span>
+      </div>
+      <div className="h-3 border border-border bg-background">
+        <div
+          className={tone === "primary" ? "h-full bg-primary" : "h-full bg-muted-foreground/40"}
+          style={{ width }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Testimonials() {
+  const t = [
+    {
+      q: "Finally a wholesaler that actually replies. Placed an order at 11pm, tracking by noon.",
+      n: "Ayesha R.",
+      r: "Instagram reseller · Lahore",
+    },
+    {
+      q: "Prices are genuinely lower than Hall Road. Saved almost Rs 40,000 in three months.",
+      n: "Usman K.",
+      r: "Daraz seller · Karachi",
+    },
+    {
+      q: "The Thursday drop is the first thing I open every week. Feels like having an insider.",
+      n: "Fatima M.",
+      r: "Boutique owner · Islamabad",
+    },
+  ];
+  return (
+    <section className="border-b border-border/60 bg-secondary/30">
+      <div className="mx-auto max-w-[1400px] px-6 py-14 md:py-18">
+        <h2 className="mb-10 max-w-3xl font-heading text-3xl font-bold leading-tight tracking-tight md:text-4xl lg:text-5xl">
+          They switched.
+          <br />
+          <span className="text-primary">They stayed.</span>
+        </h2>
+        <div className="grid gap-6 md:grid-cols-3">
+          {t.map(x => (
+            <figure key={x.n} className="border border-border bg-background p-8">
+              <div className="font-heading text-6xl leading-none text-primary">&ldquo;</div>
+              <blockquote className="mt-4 text-lg leading-relaxed text-foreground">{x.q}</blockquote>
+              <figcaption className="mt-8 border-t border-border/60 pt-4 font-mono text-xs uppercase tracking-widest">
+                <div className="text-foreground">{x.n}</div>
+                <div className="text-muted-foreground">{x.r}</div>
+              </figcaption>
+            </figure>
+          ))}
         </div>
-      </section>
+      </div>
+    </section>
+  );
+}
 
-      {/* How it works */}
-      <section className="bg-dark py-16 md:py-24 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="container relative">
-          <div className="text-center mb-14">
-            <p className="section-label mb-3">THE PROCESS</p>
-            <h2 className="font-heading font-bold text-3xl md:text-[40px] text-primary-foreground">
-              Up and running in minutes.
+function CTA() {
+  return (
+    <section id="register" className="relative overflow-hidden bg-primary text-primary-foreground">
+      <div className="mx-auto max-w-[1400px] px-6 py-16 md:py-24">
+        <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
+          <div className="lg:col-span-8">
+            <div className="mb-4 font-mono text-xs uppercase tracking-widest opacity-80">
+              Ready to order smarter?
+            </div>
+            <h2 className="font-heading text-4xl font-bold leading-tight tracking-tight md:text-6xl">
+              Skip the middlemen.
+              <br />
+              Sell the trend.
             </h2>
           </div>
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {steps.map((step, i) => (
-              <div
-                key={i}
-                className="relative bg-card/5 border border-primary-foreground/10 rounded-card p-7 hover:border-primary/40 transition-colors"
-              >
-                <div className="flex items-center justify-between mb-5">
-                  <span className="font-heading font-bold text-4xl text-primary/30">{step.num}</span>
-                  <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
-                    <step.icon size={20} className="text-primary" />
-                  </div>
-                </div>
-                <h3 className="font-heading font-bold text-lg text-primary-foreground mb-2">{step.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{step.desc}</p>
-                {i < steps.length - 1 && (
-                  <ArrowRight
-                    size={20}
-                    className="hidden md:block absolute -right-3 top-1/2 -translate-y-1/2 text-primary/40 z-10"
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="text-center mt-12">
+          <div className="lg:col-span-4">
+            <p className="mb-6 text-primary-foreground/80">
+              Join 500+ verified resellers already sourcing with The Local Baba. Free to join. Takes
+              60 seconds.
+            </p>
             <Link
               href="/apply"
-              className="group inline-flex items-center gap-2 h-[52px] px-8 rounded-pill bg-primary text-primary-foreground font-heading font-semibold hover:bg-accent-hover transition-all hover:scale-[1.02] active:scale-[0.97]"
+              className="group inline-flex items-center gap-2 border-2 border-primary-foreground bg-primary-foreground px-6 py-4 font-mono text-sm font-bold uppercase tracking-widest text-primary transition hover:bg-transparent hover:text-primary-foreground"
             >
-              Create your account
-              <ArrowRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
+              Register free
+              <ArrowUpRight className="h-4 w-4 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </Link>
           </div>
         </div>
-      </section>
-
-      {/* Savings Calculator */}
-      <section id="savings" className="py-16 md:py-24">
-        <div className="container max-w-2xl">
-          <div className="text-center mb-10">
-            <p className="section-label mb-3">SAVINGS CALCULATOR</p>
-            <h2 className="font-heading font-bold text-3xl md:text-4xl">See how much you save.</h2>
-            <p className="text-muted-foreground mt-2">Our direct-importer model saves most sellers 15–30% per order.</p>
-          </div>
-          <div className="bg-card border border-border rounded-card p-6 md:p-8 shadow-subtle space-y-6">
-            <div>
-              <div className="flex justify-between items-baseline mb-3">
-                <label className="text-sm font-medium">Monthly order value</label>
-                <span className="font-heading font-bold text-lg text-primary">Rs {sliderVal.toLocaleString()}</span>
-              </div>
-              <input
-                type="range"
-                min={10000}
-                max={500000}
-                step={5000}
-                value={sliderVal}
-                onChange={e => setSliderVal(Number(e.target.value))}
-                className="w-full accent-primary h-2 rounded-full"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                <span>Rs 10,000</span>
-                <span>Rs 5,00,000</span>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-5 rounded-xl border border-border text-center bg-muted/30">
-                <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Market cost</p>
-                <p className="font-heading font-bold text-xl md:text-2xl">Rs {marketCost.toLocaleString()}</p>
-              </div>
-              <div className="p-5 rounded-xl border-2 border-primary text-center bg-primary/5">
-                <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">With Localbaba</p>
-                <p className="font-heading font-bold text-xl md:text-2xl text-primary">Rs {ourCost.toLocaleString()}</p>
-              </div>
-            </div>
-            <div className="text-center py-4 px-4 rounded-xl bg-olive/10 border border-olive/20">
-              <p className="font-heading font-bold text-xl md:text-2xl text-foreground">
-                Save Rs {savings.toLocaleString()}/month
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Rs {(savings * 12).toLocaleString()} per year · ~22% average saving
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="py-16 md:py-24 bg-muted/30">
-        <div className="container">
-          <div className="text-center mb-12">
-            <p className="section-label mb-3">WHAT MEMBERS SAY</p>
-            <h2 className="font-heading font-bold text-3xl md:text-4xl">They switched. They stayed.</h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-5">
-            {testimonials.map((t, i) => (
-              <div
-                key={i}
-                className="bg-card border border-border rounded-card p-7 hover:shadow-card hover:border-primary/30 transition-all flex flex-col"
-              >
-                <div className="flex gap-0.5 mb-4">
-                  {Array.from({ length: 5 }).map((_, j) => (
-                    <span key={j} className="text-primary text-sm">★</span>
-                  ))}
-                </div>
-                <p className="text-foreground leading-relaxed flex-1">&ldquo;{t.quote}&rdquo;</p>
-                <div className="flex items-center gap-3 mt-6 pt-5 border-t border-border">
-                  <div className="w-11 h-11 rounded-full bg-olive text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0">
-                    {t.name.split(" ").map(w => w[0]).join("")}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">{t.name}</p>
-                    <p className="text-xs text-muted-foreground">{t.type} · {t.city}</p>
-                  </div>
-                </div>
-              </div>
+      </div>
+      <div className="border-t border-primary-foreground/20">
+        <div className="flex gap-8 overflow-hidden py-3 font-mono text-xs font-bold uppercase tracking-widest">
+          <div className="animate-marquee flex shrink-0 gap-8 whitespace-nowrap pl-8">
+            {[...marquee, ...marquee].map((m, i) => (
+              <span key={i} className="flex items-center gap-8">
+                {m}
+                <span aria-hidden>◆</span>
+              </span>
             ))}
           </div>
         </div>
-      </section>
+      </div>
+    </section>
+  );
+}
 
-      {/* Community / Social */}
-      <section className="py-16 md:py-20">
-        <div className="container max-w-3xl">
-          <div className="text-center mb-10">
-            <p className="section-label mb-3">JOIN THE COMMUNITY</p>
-            <h2 className="font-heading font-bold text-3xl md:text-4xl">Follow Localbaba</h2>
-            <p className="text-muted-foreground mt-2">Early drops, selling tips, and flash deals — before anyone else.</p>
+function Footer() {
+  return (
+    <footer className="bg-background">
+      <div className="mx-auto grid max-w-[1400px] gap-10 px-6 py-16 md:grid-cols-4">
+        <div className="md:col-span-2">
+          <div className="flex items-center gap-2">
+            <span className="grid h-8 w-8 place-items-center bg-primary font-mono text-sm font-bold text-primary-foreground">
+              LB
+            </span>
+            <span className="font-heading text-lg font-bold tracking-tight">THE LOCAL BABA</span>
           </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            {SOCIAL_LINKS.map(link => (
-              <a
-                key={link.name}
-                href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex items-center gap-4 bg-card rounded-card border border-border p-5 hover:border-primary hover:shadow-card transition-all"
-              >
-                <div className={`w-14 h-14 rounded-xl ${link.color} flex items-center justify-center shrink-0 shadow-subtle`}>
-                  <link.icon size={28} className="text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-heading font-semibold group-hover:text-primary transition-colors">{link.name}</p>
-                  <p className="text-sm text-muted-foreground">Tap to open</p>
-                </div>
-                <ArrowRight size={18} className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
-              </a>
-            ))}
-          </div>
-          <div className="mt-6 flex justify-center">
-            <a
-              href="https://wa.me/923001234567"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 h-11 px-6 rounded-pill bg-olive text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
-            >
-              <MessageCircle size={18} />
-              WhatsApp support
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section className="relative overflow-hidden bg-dark py-20 md:py-28 text-center">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-olive/10 pointer-events-none" />
-        <div className="container max-w-xl relative">
-          <h2 className="font-heading font-bold text-3xl md:text-5xl text-primary-foreground leading-tight">
-            Ready to order smarter?
-          </h2>
-          <p className="text-muted-foreground mt-4 text-lg">
-            Join 500+ verified sellers already using Localbaba.
+          <p className="mt-4 max-w-sm text-sm text-muted-foreground">
+            The B2B sourcing platform for Pakistani resellers. Direct-importer rates, tested SKUs,
+            48-hour dispatch.
           </p>
-          <Link
-            href="/apply"
-            className="group inline-flex items-center gap-2 h-[56px] px-10 rounded-pill bg-primary text-primary-foreground font-heading font-semibold text-lg mt-10 hover:bg-accent-hover transition-all hover:scale-[1.02] active:scale-[0.97] shadow-lg shadow-primary/25"
-          >
-            Register free — takes 60 seconds
-            <ArrowRight size={20} className="group-hover:translate-x-0.5 transition-transform" />
-          </Link>
-          <p className="text-xs text-muted-foreground mt-4">Free to join · No subscription · Cancel anytime</p>
         </div>
-      </section>
-
-      <Footer />
-    </div>
+        <div>
+          <div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+            Platform
+          </div>
+          <ul className="mt-4 space-y-2 text-sm">
+            <li>
+              <a href="#catalog" className="hover:text-primary">
+                Catalog
+              </a>
+            </li>
+            <li>
+              <a href="#sourcing" className="hover:text-primary">
+                Sourcing
+              </a>
+            </li>
+            <li>
+              <a href="#how" className="hover:text-primary">
+                How it works
+              </a>
+            </li>
+            <li>
+              <a href="#savings" className="hover:text-primary">
+                Pricing
+              </a>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+            Company
+          </div>
+          <ul className="mt-4 space-y-2 text-sm">
+            <li>
+              <Link href="/apply" className="hover:text-primary">
+                Register
+              </Link>
+            </li>
+            <li>
+              <Link href="/login" className="hover:text-primary">
+                Sign in
+              </Link>
+            </li>
+            <li>
+              <a href="#" className="hover:text-primary">
+                Terms
+              </a>
+            </li>
+            <li>
+              <a href="#" className="hover:text-primary">
+                Privacy
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div className="border-t border-border/60">
+        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3 px-6 py-6 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+          <span>© 2026 The Local Baba · Karachi · Lahore · Islamabad</span>
+          <span>Made with ◆ for resellers</span>
+        </div>
+      </div>
+    </footer>
   );
 }

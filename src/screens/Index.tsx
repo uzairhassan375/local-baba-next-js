@@ -467,7 +467,7 @@ function Sourcing() {
           </div>
         </div>
         <div className="rounded-2xl overflow-hidden shadow-lg">
-          <img src="/localbaba%20shipment%20map.jpeg" alt="LocalBaba Shipment Map" className="w-full h-auto object-cover" />
+          <img src="/localbaba shipment map.jpeg" alt="LocalBaba Shipment Map" className="w-full h-auto object-cover" />
         </div>
       </div>
     </section>

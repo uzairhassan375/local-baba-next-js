@@ -33,7 +33,7 @@ export default function WhatsAppCommunityModal() {
           </div>
 
           <div className="-mt-1 flex items-center justify-center">
-            <img src="/Localbaba%20Logo.png" alt="LocalBaba" className="h-32 w-auto object-contain" />
+            <img src="/Localbaba-logo.png" alt="LocalBaba" className="h-32 w-auto object-contain" />
           </div>
 
           <div className="-mt-1 text-center">

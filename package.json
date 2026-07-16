@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "NODE_OPTIONS=--no-webstorage next dev --turbopack",
-    "build": "NODE_OPTIONS=--no-webstorage next build",
-    "start": "NODE_OPTIONS=--no-webstorage next start",
+    "build": "next build",
+    "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {

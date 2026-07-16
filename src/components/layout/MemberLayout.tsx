@@ -18,7 +18,7 @@ export function MemberLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-[220px] bg-dark fixed top-16 bottom-0 z-40">
+      <aside className="hidden md:flex flex-col w-[220px] bg-card fixed top-16 bottom-0 z-40">
         <div className="flex-1 py-6">
           {sidebarLinks.map(l => {
             const active =
@@ -33,8 +33,8 @@ export function MemberLayout({ children }: { children: React.ReactNode }) {
                 href={l.href}
                 className={`flex items-center gap-3 px-6 py-3 text-sm transition-colors ${
                   active
-                    ? "text-primary border-l-[3px] border-primary bg-sidebar-accent"
-                    : "text-sidebar-foreground hover:text-primary-foreground border-l-[3px] border-transparent"
+                    ? "text-primary border-l-[3px] border-primary bg-muted"
+                    : "text-foreground hover:text-primary border-l-[3px] border-transparent"
                 }`}
               >
                 <l.icon size={18} />
@@ -57,7 +57,7 @@ export function MemberLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 md:ml-[220px] pb-20 md:pb-0">
+      <main className="flex-1 md:ml-[220px] pb-20 md:pb-0 pt-16">
         {children}
       </main>
 

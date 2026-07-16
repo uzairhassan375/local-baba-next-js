@@ -48,7 +48,7 @@ export default function LandingPage() {
   });
 
   return (
-    <main className="theme-landing min-h-screen bg-background text-foreground font-body overflow-x-hidden">
+    <main className="theme-landing min-h-screen bg-background text-foreground font-body overflow-x-hidden pt-16">
       <Nav />
       <Hero products={products} />
       <Marquee />
@@ -66,7 +66,7 @@ export default function LandingPage() {
 
 function Nav() {
   return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
+    <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center gap-2">
           <span className="grid h-8 w-8 place-items-center bg-primary font-mono text-sm font-bold text-primary-foreground">
@@ -398,7 +398,7 @@ function LandingDropCard({ product }: { product: Product }) {
 
 function Categories() {
   return (
-    <section className="border-b border-border/60 bg-secondary/30">
+    <section className="border-b border-border/60 bg-[hsl(24_100%_97%)]/50">
       <div className="mx-auto max-w-[1400px] px-6 py-12 md:py-16">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <h2 className="font-heading text-2xl font-bold tracking-tight md:text-3xl">
@@ -413,7 +413,7 @@ function Categories() {
             <a
               key={c.name}
               href="#catalog"
-              className="group flex items-center justify-between bg-background p-6 transition hover:bg-primary hover:text-primary-foreground"
+              className="group flex items-center justify-between bg-[hsl(24_100%_98%)] p-6 transition hover:bg-primary hover:text-primary-foreground"
             >
               <div>
                 <div className="font-heading text-lg font-bold">{c.name}</div>
@@ -438,9 +438,9 @@ function Sourcing() {
     { icon: Truck, t: "Landed in Pakistan", d: "Duty-paid, quality-checked, in-stock. 48-hour dispatch nationwide." },
   ];
   return (
-    <section id="sourcing" className="border-b border-border/60">
-      <div className="mx-auto max-w-[1400px] px-6 py-14 md:py-20">
-        <div className="grid gap-12 lg:grid-cols-12">
+    <section id="sourcing" className="border-b border-border/60 bg-[hsl(0_0%_97%)]/50">
+      <div className="mx-auto max-w-[1400px] px-6 py-16 md:py-28">
+        <div className="grid gap-12 lg:grid-cols-12 mb-12">
           <div className="lg:col-span-5">
             <div className="mb-4 font-mono text-xs uppercase tracking-widest text-primary">
               The sourcing layer
@@ -450,16 +450,14 @@ function Sourcing() {
               <br />
               You speak <span className="text-primary">Instagram.</span>
             </h2>
-            <p className="mt-6 max-w-md text-muted-foreground">
-              Our team lives on the ground in Guangzhou, Yiwu and Shenzhen. We scout what&apos;s
-              about to trend, negotiate importer pricing, verify the factory, and land the SKU in
-              Pakistan — so you can order it like a normal e-commerce product.
+            <p className="mt-6 max-w-md text-muted-foreground leading-relaxed">
+              Our team lives on the ground in Guangzhou, Yiwu and Shenzhen. We scout what&apos;s about to trend, negotiate importer pricing, verify the factory, and land the SKU in Pakistan — so you can order it like a normal e-commerce product.
             </p>
           </div>
           <div className="lg:col-span-7">
             <ol className="grid gap-px bg-border sm:grid-cols-2">
               {items.map(({ icon: Icon, t, d }) => (
-                <li key={t} className="bg-background p-8">
+                <li key={t} className="bg-[hsl(0_0%_98%)] p-8">
                   <Icon className="h-6 w-6 text-primary" />
                   <div className="mt-6 font-heading text-xl font-bold">{t}</div>
                   <p className="mt-2 text-sm text-muted-foreground">{d}</p>
@@ -467,6 +465,9 @@ function Sourcing() {
               ))}
             </ol>
           </div>
+        </div>
+        <div className="rounded-2xl overflow-hidden shadow-lg">
+          <img src="/localbaba%20shipment%20map.jpeg" alt="LocalBaba Shipment Map" className="w-full h-auto object-cover" />
         </div>
       </div>
     </section>
@@ -481,7 +482,7 @@ function Process() {
     { n: "04", t: "Track on WhatsApp", d: "Dispatch inside 48 hours with a live tracking link to your phone." },
   ];
   return (
-    <section id="how" className="border-b border-border/60 bg-secondary/30">
+    <section id="how" className="border-b border-border/60 bg-[hsl(24_100%_97%)]/50">
       <div className="mx-auto max-w-[1400px] px-6 py-14 md:py-18">
         <div className="mb-10 max-w-3xl">
           <div className="mb-3 font-mono text-xs uppercase tracking-widest text-primary">
@@ -493,7 +494,7 @@ function Process() {
         </div>
         <div className="grid gap-px bg-border md:grid-cols-4">
           {steps.map(s => (
-            <div key={s.n} className="bg-background p-8">
+            <div key={s.n} className="bg-[hsl(24_100%_98%)] p-8">
               <div className="font-mono text-xs uppercase tracking-widest text-primary">{s.n}</div>
               <div className="mt-8 font-heading text-2xl font-bold leading-tight">{s.t}</div>
               <p className="mt-3 text-sm text-muted-foreground">{s.d}</p>
@@ -512,7 +513,7 @@ function Savings() {
     [Truck, "48h dispatch"],
   ];
   return (
-    <section id="savings" className="border-b border-border/60">
+    <section id="savings" className="border-b border-border/60 bg-[hsl(0_0%_97%)]/50">
       <div className="mx-auto grid max-w-[1400px] gap-12 px-6 py-14 md:py-20 lg:grid-cols-2">
         <div>
           <div className="mb-3 font-mono text-xs uppercase tracking-widest text-primary">
@@ -538,7 +539,7 @@ function Savings() {
             ))}
           </div>
         </div>
-        <div className="border border-border bg-secondary/40 p-8 md:p-10">
+        <div className="border border-[hsl(24_89%_85%)] bg-[hsl(24_100%_97%)] p-8 md:p-10">
           <div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
             Monthly order value
           </div>
@@ -547,7 +548,7 @@ function Savings() {
             <Bar label="Typical market cost" amount="Rs 50,000" width="100%" tone="muted" />
             <Bar label="Your cost with LocalBaba" amount="Rs 39,000" width="78%" tone="primary" />
           </div>
-          <div className="mt-10 border-t border-border/60 pt-6">
+          <div className="mt-10 border-t border-[hsl(24_89%_85%)] pt-6">
             <div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
               You save
             </div>
@@ -610,7 +611,7 @@ function Testimonials() {
     },
   ];
   return (
-    <section className="border-b border-border/60 bg-secondary/30">
+    <section className="border-b border-border/60 bg-[hsl(0_0%_97%)]/50">
       <div className="mx-auto max-w-[1400px] px-6 py-14 md:py-18">
         <h2 className="mb-10 max-w-3xl font-heading text-3xl font-bold leading-tight tracking-tight md:text-4xl lg:text-5xl">
           They switched.
@@ -619,10 +620,10 @@ function Testimonials() {
         </h2>
         <div className="grid gap-6 md:grid-cols-3">
           {t.map(x => (
-            <figure key={x.n} className="border border-border bg-background p-8">
+            <figure key={x.n} className="border border-[hsl(24_89%_85%)] bg-[hsl(24_100%_98%)] p-8">
               <div className="font-heading text-6xl leading-none text-primary">&ldquo;</div>
               <blockquote className="mt-4 text-lg leading-relaxed text-foreground">{x.q}</blockquote>
-              <figcaption className="mt-8 border-t border-border/60 pt-4 font-mono text-xs uppercase tracking-widest">
+              <figcaption className="mt-8 border-t border-[hsl(24_89%_85%)] pt-4 font-mono text-xs uppercase tracking-widest">
                 <div className="text-foreground">{x.n}</div>
                 <div className="text-muted-foreground">{x.r}</div>
               </figcaption>

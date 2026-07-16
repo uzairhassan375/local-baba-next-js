@@ -30,22 +30,22 @@ export function MemberNavbar() {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 bg-dark">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
         <div className="container flex items-center justify-between h-16">
-          <Link href="/dashboard" className="font-heading font-bold text-xl text-primary-foreground">
+          <Link href="/dashboard" className="font-heading font-bold text-xl text-foreground">
             The Local Baba<span className="text-primary">.</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-6">
             {navLinks.map(l => (
-              <Link key={l.href + l.label} href={l.href} className="text-sm text-sidebar-foreground hover:text-primary-foreground transition-colors font-body">
+              <Link key={l.href + l.label} href={l.href} className="text-sm text-foreground hover:text-primary transition-colors font-body">
                 {l.label}
               </Link>
             ))}
           </div>
 
           <div className="flex items-center gap-3">
-            <button onClick={openCart} className="relative text-primary-foreground p-2" aria-label="Cart">
+            <button onClick={openCart} className="relative text-foreground p-2" aria-label="Cart">
               <ShoppingCart size={20} />
               {itemCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
@@ -56,13 +56,13 @@ export function MemberNavbar() {
             <div className="hidden md:block relative">
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-2.5 pl-3 pr-1 py-1 rounded-full hover:bg-white/5 transition-colors"
+                className="flex items-center gap-2.5 pl-3 pr-1 py-1 rounded-full hover:bg-foreground/5 transition-colors"
                 aria-label="Account menu"
               >
-                <span className="text-sm text-primary-foreground font-medium max-w-[140px] truncate text-right">
+                <span className="text-sm text-foreground font-medium max-w-[140px] truncate text-right">
                   {member?.name || "Member"}
                 </span>
-                <span className="w-9 h-9 rounded-full bg-olive text-primary-foreground text-xs font-bold flex items-center justify-center shrink-0">
+                <span className="w-9 h-9 rounded-full bg-olive text-foreground text-xs font-bold flex items-center justify-center shrink-0">
                   {initials}
                 </span>
               </button>
@@ -82,23 +82,23 @@ export function MemberNavbar() {
               className="md:hidden flex items-center gap-2 min-w-0 max-w-[120px]"
               aria-label="Profile"
             >
-              <span className="text-xs text-primary-foreground font-medium truncate">
+              <span className="text-xs text-foreground font-medium truncate">
                 {member?.name?.split(" ")[0] || "Member"}
               </span>
-              <span className="w-8 h-8 rounded-full bg-olive text-primary-foreground text-[10px] font-bold flex items-center justify-center shrink-0">
+              <span className="w-8 h-8 rounded-full bg-olive text-foreground text-[10px] font-bold flex items-center justify-center shrink-0">
                 {initials}
               </span>
             </Link>
-            <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-primary-foreground p-2" aria-label="Menu">
+            <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-foreground p-2" aria-label="Menu">
               {menuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
         </div>
         {menuOpen && (
-          <div className="md:hidden border-t border-sidebar-border animate-fade-in-up">
+          <div className="md:hidden border-t border-border animate-fade-in-up">
             <div className="container py-3 space-y-2">
               {navLinks.map(l => (
-                <Link key={l.href + l.label} href={l.href} onClick={() => setMenuOpen(false)} className="block py-2 text-sidebar-foreground text-sm">{l.label}</Link>
+                <Link key={l.href + l.label} href={l.href} onClick={() => setMenuOpen(false)} className="block py-2 text-foreground text-sm">{l.label}</Link>
               ))}
               <button onClick={() => { void logout(); setMenuOpen(false); }} className="block py-2 text-danger text-sm">Logout</button>
             </div>

@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
-import { X } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 const WHATSAPP_URL = "https://chat.whatsapp.com/FT2GIUaopaMJ8ZMeZI0lLE?s=sh&p=i&ilr=0&amv=2";
 
@@ -25,6 +24,9 @@ export default function WhatsAppCommunityModal() {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="w-[min(92vw,22rem)] max-w-xs rounded-[1.25rem] border-2 border-orange-300 bg-white p-3 shadow-[0_20px_50px_rgba(0,0,0,0.18)]">
         <DialogTitle className="sr-only">Join our WhatsApp community</DialogTitle>
+        <DialogDescription className="sr-only">
+          Get product updates and alerts by joining our WhatsApp community.
+        </DialogDescription>
         <div className="relative">
           <div className="text-center">
             <p className="text-sm text-[#ff7a00] font-medium">Our Efforts</p>

@@ -74,17 +74,17 @@ function Nav() {
           </span>
           <span className="font-heading text-lg font-bold tracking-tight">THE LOCAL BABA</span>
         </Link>
-        <nav className="hidden items-center gap-8 font-mono text-xs uppercase tracking-widest text-muted-foreground md:flex">
-          <a href="#catalog" className="hover:text-foreground">
+        <nav className="hidden items-center gap-8 font-mono text-xs uppercase tracking-widest text-primary md:flex">
+          <a href="#catalog" className="transition duration-200 hover:text-primary/80 hover:-translate-y-[0.25px] font-bold">
             Catalog
           </a>
-          <a href="#sourcing" className="hover:text-foreground">
+          <a href="#sourcing" className="transition duration-200 hover:text-primary/80 hover:-translate-y-[0.25px] font-bold">
             Sourcing
           </a>
-          <a href="#how" className="hover:text-foreground">
+          <a href="#how" className="transition duration-200 hover:text-primary/80 hover:-translate-y-[0.25px] font-bold">
             How it works
           </a>
-          <a href="#savings" className="hover:text-foreground">
+          <a href="#savings" className="transition duration-200 hover:text-primary/80 hover:-translate-y-[0.25px] font-bold">
             Pricing
           </a>
         </nav>
@@ -97,10 +97,10 @@ function Nav() {
           </Link>
           <Link
             href="/apply"
-            className="group inline-flex items-center gap-1.5 bg-primary px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-primary-foreground transition hover:bg-accent-hover"
+            className="group inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-slate-950 via-slate-800 to-slate-700 px-4 py-2.5 font-mono text-xs font-semibold uppercase tracking-widest text-white shadow-sm shadow-slate-950/20 transition duration-200 hover:-translate-y-[0.35px] hover:shadow-lg hover:from-slate-900 hover:via-slate-700 hover:to-slate-600"
           >
             Register free
-            <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </Link>
         </div>
       </div>
@@ -119,9 +119,9 @@ function Hero({ products }: { products: Product[] }) {
           alt=""
           width={1600}
           height={1200}
-          className="h-full w-full object-cover opacity-40"
+          className="h-full w-full object-cover opacity-52"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/85 to-background/30" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/75 to-background/25" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
         <div className="absolute -top-32 right-0 h-[560px] w-[560px] rounded-full bg-primary/15 blur-3xl" />
       </div>
@@ -288,10 +288,10 @@ function TrendingDrop({ products, isLoading }: { products: Product[]; isLoading:
           </div>
           <Link
             href="/apply"
-            className="group inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
+            className="group inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 font-mono text-xs uppercase tracking-widest font-semibold text-primary-foreground shadow-sm shadow-primary/20 transition duration-200 hover:bg-accent-hover hover:-translate-y-[0.35px] hover:shadow-md"
           >
             View full catalog
-            <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </Link>
         </div>
 
@@ -637,35 +637,35 @@ function Testimonials() {
 
 function CTA() {
   return (
-    <section id="register" className="relative overflow-hidden bg-primary text-primary-foreground">
+    <section id="register" className="relative overflow-hidden bg-background text-foreground">
       <div className="mx-auto max-w-[1400px] px-6 py-16 md:py-24">
         <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
           <div className="lg:col-span-8">
-            <div className="mb-4 font-mono text-xs uppercase tracking-widest opacity-80">
+            <div className="mb-4 font-mono text-xs uppercase tracking-widest text-slate-500">
               Ready to order smarter?
             </div>
-            <h2 className="font-heading text-4xl font-bold leading-tight tracking-tight md:text-6xl">
+            <h2 className="font-heading text-4xl font-bold leading-tight tracking-tight text-slate-950 md:text-6xl">
               Skip the middlemen.
               <br />
               Sell the trend.
             </h2>
           </div>
           <div className="lg:col-span-4">
-            <p className="mb-6 text-primary-foreground/80">
+            <p className="mb-6 max-w-xl text-slate-600">
               Join 500+ verified resellers already sourcing with The Local Baba. Free to join. Takes
               60 seconds.
             </p>
             <Link
               href="/apply"
-              className="group inline-flex items-center gap-2 border-2 border-primary-foreground bg-primary-foreground px-6 py-4 font-mono text-sm font-bold uppercase tracking-widest text-primary transition hover:bg-transparent hover:text-primary-foreground"
+              className="group inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3.5 font-mono text-sm font-semibold uppercase tracking-widest text-white shadow-lg shadow-slate-950/15 transition duration-200 hover:bg-slate-800"
             >
               Register free
-              <ArrowUpRight className="h-4 w-4 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </Link>
           </div>
         </div>
       </div>
-      <div className="border-t border-primary-foreground/20">
+      <div className="bg-primary text-primary-foreground">
         <div className="flex gap-8 overflow-hidden py-3 font-mono text-xs font-bold uppercase tracking-widest">
           <div className="animate-marquee flex shrink-0 gap-8 whitespace-nowrap pl-8">
             {[...marquee, ...marquee].map((m, i) => (
@@ -683,77 +683,82 @@ function CTA() {
 
 function Footer() {
   return (
-    <footer className="bg-background">
+    <footer className="bg-orange-500 text-white">
       <div className="mx-auto grid max-w-[1400px] gap-10 px-6 py-16 md:grid-cols-4">
         <div className="md:col-span-2">
           <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center bg-primary font-mono text-sm font-bold text-primary-foreground">
+            <span className="grid h-8 w-8 place-items-center bg-white font-mono text-sm font-bold text-orange-500">
               LB
             </span>
-            <span className="font-heading text-lg font-bold tracking-tight">THE LOCAL BABA</span>
+            <span className="font-heading text-lg font-bold tracking-tight text-white">THE LOCAL BABA</span>
           </div>
-          <p className="mt-4 max-w-sm text-sm text-muted-foreground">
+          <p className="mt-4 max-w-sm text-sm text-white/80">
             The B2B sourcing platform for Pakistani resellers. Direct-importer rates, tested SKUs,
             48-hour dispatch.
           </p>
+          <div className="mt-4 space-y-1">
+            <p className="text-sm text-white/80"><span className="font-semibold text-white">Head Office:</span> 206-CCA2 Phase 6 DHA Lahore</p>
+            <p className="text-sm text-white/80"><span className="font-semibold text-white">Shop:</span> G-131 Central Plaza Karachi</p>
+            <p className="text-sm text-white/80"><span className="font-semibold text-white">Warehouse:</span> —</p>
+          </div>
         </div>
         <div>
-          <div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+          <div className="font-mono text-[11px] uppercase tracking-widest text-white font-bold">
             Platform
           </div>
           <ul className="mt-4 space-y-2 text-sm">
             <li>
-              <a href="#catalog" className="hover:text-primary">
+              <a href="#catalog" className="text-white hover:text-slate-800 transition-colors">
                 Catalog
               </a>
             </li>
             <li>
-              <a href="#sourcing" className="hover:text-primary">
+              <a href="#sourcing" className="text-white hover:text-slate-800 transition-colors">
                 Sourcing
               </a>
             </li>
             <li>
-              <a href="#how" className="hover:text-primary">
+              <a href="#how" className="text-white hover:text-slate-800 transition-colors">
                 How it works
               </a>
             </li>
             <li>
-              <a href="#savings" className="hover:text-primary">
+              <a href="#savings" className="text-white hover:text-slate-800 transition-colors">
                 Pricing
               </a>
             </li>
           </ul>
         </div>
         <div>
-          <div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+          <div className="font-mono text-[11px] uppercase tracking-widest text-white font-bold">
             Company
           </div>
           <ul className="mt-4 space-y-2 text-sm">
             <li>
-              <Link href="/apply" className="hover:text-primary">
+              <Link href="/apply" className="text-white hover:text-slate-800 transition-colors">
                 Register
               </Link>
             </li>
             <li>
-              <Link href="/login" className="hover:text-primary">
+              <Link href="/login" className="text-white hover:text-slate-800 transition-colors">
                 Sign in
               </Link>
             </li>
             <li>
-              <a href="#" className="hover:text-primary">
-                Terms
-              </a>
+              <Link href="/terms" className="text-white hover:text-slate-800 transition-colors">
+                Terms of services
+              </Link>
             </li>
             <li>
-              <a href="#" className="hover:text-primary">
-                Privacy
-              </a>
+              <Link href="/privacy" className="text-white hover:text-slate-800 transition-colors">
+                Privacy policy
+              </Link>
             </li>
           </ul>
         </div>
       </div>
-      <div className="border-t border-border/60">
-        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3 px-6 py-6 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+      <div className="border-t border-white/20">
+        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3 px-6 py-6 font-mono text-[11px] uppercase tracking-widest text-white/70">
           <span>© 2026 The Local Baba · Karachi · Lahore · Islamabad</span>
           <span>Made with ◆ for resellers</span>
         </div>

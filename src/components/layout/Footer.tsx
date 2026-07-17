@@ -33,6 +33,11 @@ export function Footer() {
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
               Pakistan&apos;s direct-importer B2B platform. Wholesale the way it should be — from Lahore.
             </p>
+            <div className="mt-4 space-y-1">
+              <p className="text-sm text-muted-foreground"><span className="text-primary-foreground font-medium">Head Office:</span> 206-CCA2 Phase 6 DHA Lahore</p>
+              <p className="text-sm text-muted-foreground"><span className="text-primary-foreground font-medium">Shop:</span> G-131 Central Plaza Karachi</p>
+              <p className="text-sm text-muted-foreground"><span className="text-primary-foreground font-medium">Warehouse:</span> —</p>
+            </div>
             <div className="flex gap-3 mt-5">
               {socialLinks.map(s => (
                 <a
@@ -90,8 +95,8 @@ export function Footer() {
           </div>
         </div>
       </div>
-      <div className="border-t border-primary-foreground/8">
-        <div className="container py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+      <div className="bg-orange-500">
+        <div className="container py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-white">
           <span>© {new Date().getFullYear()} localbaba. All rights reserved.</span>
           <span>Lahore, Pakistan</span>
         </div>

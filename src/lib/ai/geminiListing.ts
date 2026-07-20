@@ -1,260 +1,163 @@
-import { uploadBufferToBunny } from "@/lib/bunny/storage";
+import {
+  emptyListing,
+  extensionForMime,
+  extractJsonObject,
+  LISTING_TIMEOUT_MS,
+  parseListingJson,
+  type ListingJson,
+} from "./listingTypes";
 
-export const GEMINI_TIMEOUT_MS = 60_000;
-export const LISTING_TIMEOUT_MS = 45_000;
+export {
+  emptyListing,
+  extensionForMime,
+  parseListingJson,
+  type ListingJson,
+} from "./listingTypes";
 
-export const ANGLE_PROMPTS = [
-  "front view on white background",
-  "45-degree angle on white background",
-  "side view on white background",
-  "back view on white background",
-  "close-up detail shot on white background",
-  "lifestyle shot on neutral background",
-  "top-down view on white background",
-] as const;
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"] as const;
 
-export type ListingJson = {
-  title: string;
-  description: string;
-  category: string;
-  tags: string[];
-  key_features: string[];
-  suggested_attributes: Record<string, string>;
+type GeminiGenerateResponse = {
+  error?: { message?: string; status?: string; code?: number };
+  promptFeedback?: { blockReason?: string; blockReasonMessage?: string };
+  candidates?: Array<{
+    finishReason?: string;
+    content?: { parts?: Array<{ text?: string }> };
+  }>;
 };
 
-export function emptyListing(): ListingJson {
-  return {
-    title: "",
-    description: "",
-    category: "",
-    tags: [],
-    key_features: [],
-    suggested_attributes: {},
-  };
+function buildListingPrompt(details: string): string {
+  return [
+    "You write ecommerce product listings for LocalBaba (Pakistan wholesale / B2B catalogue).",
+    "The admin provided product details below. Use those as the primary source of truth.",
+    "If an image is attached, use it to enrich color, material, style, and visual attributes.",
+    "Write a clear commercial title and a polished product description yourself — do not copy the notes verbatim;",
+    "expand them into proper listing copy while staying faithful to the facts given.",
+    "Return ONLY valid JSON (no markdown) with keys:",
+    'title (string — compelling product name), description (string — 2–5 short paragraphs or bullet-friendly prose),',
+    "category (string; prefer one of Fashion, Electronics, Home, Beauty, Kids when possible),",
+    "tags (string array of short marketing tags), key_features (string array),",
+    "suggested_attributes (object of attributes like color/material/size when known).",
+    "Do not invent a price or quantity.",
+    "",
+    "Admin product details:",
+    details,
+  ].join("\n");
 }
 
-export function parseListingJson(raw: unknown): ListingJson {
-  if (!raw || typeof raw !== "object") return emptyListing();
-  const o = raw as Record<string, unknown>;
-  const tags = Array.isArray(o.tags) ? o.tags.filter((t): t is string => typeof t === "string") : [];
-  const key_features = Array.isArray(o.key_features)
-    ? o.key_features.filter((t): t is string => typeof t === "string")
-    : [];
-  let suggested_attributes: Record<string, string> = {};
-  if (o.suggested_attributes && typeof o.suggested_attributes === "object" && !Array.isArray(o.suggested_attributes)) {
-    suggested_attributes = Object.fromEntries(
-      Object.entries(o.suggested_attributes as Record<string, unknown>)
-        .filter(([, v]) => typeof v === "string" || typeof v === "number")
-        .map(([k, v]) => [k, String(v)]),
+function extractText(json: GeminiGenerateResponse): string {
+  if (json.error?.message) {
+    throw new Error(json.error.message);
+  }
+  if (json.promptFeedback?.blockReason) {
+    throw new Error(
+      `Gemini blocked the prompt (${json.promptFeedback.blockReason}${
+        json.promptFeedback.blockReasonMessage ? `: ${json.promptFeedback.blockReasonMessage}` : ""
+      })`,
     );
   }
-  return {
-    title: typeof o.title === "string" ? o.title : "",
-    description: typeof o.description === "string" ? o.description : "",
-    category: typeof o.category === "string" ? o.category : "",
-    tags,
-    key_features,
-    suggested_attributes,
-  };
-}
-
-export function extensionForMime(mime: string): string {
-  if (mime === "image/png") return "png";
-  if (mime === "image/webp") return "webp";
-  if (mime === "image/gif") return "gif";
-  return "jpg";
-}
-
-function extractJsonObject(text: string): unknown {
-  const trimmed = text.trim();
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    const start = trimmed.indexOf("{");
-    const end = trimmed.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      return JSON.parse(trimmed.slice(start, end + 1));
-    }
-    throw new Error("No JSON object in model response");
+  const candidate = json.candidates?.[0];
+  if (!candidate) {
+    throw new Error("Gemini returned no candidates");
   }
+  if (candidate.finishReason && !["STOP", "MAX_TOKENS"].includes(candidate.finishReason)) {
+    throw new Error(`Gemini finished with ${candidate.finishReason}`);
+  }
+  const text = candidate.content?.parts?.map(p => p.text || "").join("") || "";
+  if (!text.trim()) {
+    throw new Error(`Gemini returned empty text (finishReason=${candidate.finishReason || "unknown"})`);
+  }
+  return text;
 }
 
-export async function generateGeminiProductImage(opts: {
+async function callGemini(opts: {
   apiKey: string;
-  mimeType: string;
-  base64: string;
-  anglePrompt: string;
-}): Promise<{ mimeType: string; bytes: Buffer }> {
-  const prompt = [
-    "You are generating an additional ecommerce product photo for the exact same product shown in the reference image.",
-    "Preserve product identity: shape, colors, materials, branding, logos, and proportions must stay consistent with the reference.",
-    "Do not invent a different product. Photorealistic, sharp, commercial product photography.",
-    `Shot requirement: ${opts.anglePrompt}.`,
-    "Return one image only.",
-  ].join(" ");
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${encodeURIComponent(opts.apiKey)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                inlineData: {
-                  mimeType: opts.mimeType,
-                  data: opts.base64,
-                },
-              },
-              { text: prompt },
-            ],
-          },
-        ],
-        generationConfig: {
-          responseModalities: ["TEXT", "IMAGE"],
-        },
-      }),
-    },
-  );
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Gemini image generation failed (${res.status}): ${detail.slice(0, 200)}`);
-  }
-
-  const json = (await res.json()) as {
-    candidates?: Array<{
-      content?: {
-        parts?: Array<{
-          inlineData?: { mimeType?: string; data?: string };
-          inline_data?: { mime_type?: string; data?: string };
-        }>;
-      };
-    }>;
-  };
-
-  const parts = json.candidates?.[0]?.content?.parts ?? [];
-  for (const part of parts) {
-    const inline = part.inlineData ?? part.inline_data;
-    const data = inline?.data;
-    if (!data) continue;
-    const mime =
-      inline && "mimeType" in inline && inline.mimeType
-        ? inline.mimeType
-        : inline && "mime_type" in inline && inline.mime_type
-          ? inline.mime_type
-          : "image/png";
-    return { mimeType: mime, bytes: Buffer.from(data, "base64") };
-  }
-
-  throw new Error("Gemini returned no image data");
-}
-
-/** Listing copy via Gemini (text model) — no OpenAI. */
-export async function generateListingCopyWithGemini(opts: {
-  apiKey: string;
-  mimeType: string;
-  base64: string;
+  model: string;
+  parts: Array<Record<string, unknown>>;
+  useJsonMime: boolean;
 }): Promise<ListingJson> {
-  const prompt = [
-    "You write ecommerce product listings for LocalBaba.",
-    "Analyze the product image and return ONLY valid JSON (no markdown) with keys:",
-    'title (string), description (string), category (string; prefer one of Fashion, Electronics, Home, Beauty, Kids when possible),',
-    "tags (string array of short marketing tags), key_features (string array),",
-    "suggested_attributes (object of visible attributes like color/material/size).",
-    "Do not invent a price or quantity.",
-  ].join(" ");
-
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(opts.apiKey)}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${opts.model}:generateContent?key=${encodeURIComponent(opts.apiKey)}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: AbortSignal.timeout(LISTING_TIMEOUT_MS),
       body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                inlineData: {
-                  mimeType: opts.mimeType,
-                  data: opts.base64,
-                },
-              },
-              { text: prompt },
-            ],
-          },
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-        },
+        contents: [{ role: "user", parts: opts.parts }],
+        generationConfig: opts.useJsonMime ? { responseMimeType: "application/json" } : undefined,
       }),
     },
   );
 
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Gemini listing failed (${res.status}): ${detail.slice(0, 200)}`);
+  const raw = await res.text();
+  let json: GeminiGenerateResponse;
+  try {
+    json = JSON.parse(raw) as GeminiGenerateResponse;
+  } catch {
+    throw new Error(`Gemini listing failed (${res.status}): ${raw.slice(0, 240)}`);
   }
 
-  const json = (await res.json()) as {
-    candidates?: Array<{
-      content?: { parts?: Array<{ text?: string }> };
-    }>;
-  };
-
-  const text = json.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
-  if (!text.trim()) throw new Error("Gemini returned empty listing content");
+  if (!res.ok) {
+    throw new Error(
+      json.error?.message || `Gemini listing failed (${res.status}): ${raw.slice(0, 240)}`,
+    );
+  }
 
   try {
-    return parseListingJson(extractJsonObject(text));
-  } catch {
-    throw new Error("Gemini returned invalid listing JSON");
+    return parseListingJson(extractJsonObject(extractText(json)));
+  } catch (e) {
+    throw new Error(e instanceof Error ? e.message : "Gemini returned invalid listing JSON");
   }
 }
 
-export async function generateAndUploadProductImages(opts: {
+/** Listing copy via Gemini — uses admin-provided product details + image. */
+export async function generateListingCopyWithGemini(opts: {
   apiKey: string;
-  userId: string;
   mimeType: string;
   base64: string;
-  count: number;
-  folder?: string;
-}): Promise<{ urls: string[]; errors: number }> {
-  const count = Math.max(1, Math.min(7, opts.count));
-  const folder = opts.folder ?? `${opts.userId}/ai-listings/${crypto.randomUUID()}`;
-  const prompts = ANGLE_PROMPTS.slice(0, count);
+  productDetails: string;
+}): Promise<ListingJson> {
+  const details = opts.productDetails.trim();
+  if (!details) throw new Error("Product details are required");
 
-  const results = await Promise.all(
-    prompts.map(async (anglePrompt, index) => {
-      try {
-        const generated = await generateGeminiProductImage({
-          apiKey: opts.apiKey,
-          mimeType: opts.mimeType,
-          base64: opts.base64,
-          anglePrompt,
-        });
-        const outExt = extensionForMime(generated.mimeType);
-        const url = await uploadBufferToBunny({
-          bytes: generated.bytes,
-          contentType: generated.mimeType,
-          objectPath: `${folder}/gen-${Date.now()}-${index + 1}.${outExt}`,
-        });
-        return { ok: true as const, url };
-      } catch (e) {
-        console.error(`Gemini angle "${anglePrompt}" failed`, e);
-        return { ok: false as const };
+  const prompt = buildListingPrompt(details);
+  const withImageParts = [
+    {
+      inlineData: {
+        mimeType: opts.mimeType,
+        data: opts.base64,
+      },
+    },
+    { text: prompt },
+  ];
+  const textOnlyParts = [{ text: prompt }];
+
+  const attempts: Array<{ model: string; parts: Array<Record<string, unknown>>; useJsonMime: boolean; label: string }> =
+    [];
+  for (const model of GEMINI_MODELS) {
+    attempts.push({ model, parts: withImageParts, useJsonMime: true, label: `${model}+image+json` });
+    attempts.push({ model, parts: withImageParts, useJsonMime: false, label: `${model}+image` });
+    attempts.push({ model, parts: textOnlyParts, useJsonMime: true, label: `${model}+text+json` });
+  }
+
+  const errors: string[] = [];
+  for (const attempt of attempts) {
+    try {
+      const listing = await callGemini({
+        apiKey: opts.apiKey,
+        model: attempt.model,
+        parts: attempt.parts,
+        useJsonMime: attempt.useJsonMime,
+      });
+      if (!listing.title && !listing.description) {
+        throw new Error("Parsed listing was empty");
       }
-    }),
-  );
+      return listing;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "unknown error";
+      console.error(`Gemini listing attempt failed (${attempt.label}):`, msg);
+      errors.push(`${attempt.label}: ${msg}`);
+    }
+  }
 
-  return {
-    urls: results.filter(r => r.ok).map(r => r.url),
-    errors: results.filter(r => !r.ok).length,
-  };
+  throw new Error(errors[0] || "Gemini listing failed");
 }

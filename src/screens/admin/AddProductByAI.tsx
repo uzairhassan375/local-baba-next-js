@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Loader2, RefreshCw, Sparkles, Upload, X } from "lucide-react";
+import { Check, Loader2, Sparkles, Upload } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -26,8 +26,8 @@ type Step = "upload" | "loading" | "review";
 
 type GenerateResponse = {
   originalImageUrl?: string;
-  generatedImageUrls?: string[];
-  imageErrors?: number;
+  similarImageUrls?: string[];
+  serpError?: string | null;
   listingError?: string | null;
   title?: string;
   description?: string;
@@ -41,10 +41,7 @@ type GenerateResponse = {
 type ImageSlot = {
   id: string;
   url: string;
-  /** Included when saving the product */
   keep: boolean;
-  /** Marked to replace via Gemini regenerate */
-  replace: boolean;
   isOriginal?: boolean;
 };
 
@@ -126,7 +123,7 @@ function ChipEditor({
               aria-label={`Remove ${tag}`}
               onClick={() => onChange(values.filter(t => t !== tag))}
             >
-              <X className="h-3 w-3" />
+              ×
             </button>
           </span>
         ))}
@@ -163,23 +160,21 @@ export function AddProductByAI({
   const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
+  const [productDetails, setProductDetails] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState("Uploading image...");
   const [review, setReview] = useState<ReviewState>(emptyReview);
   const [saving, setSaving] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
   const [genNote, setGenNote] = useState<string | null>(null);
 
   const reset = useCallback(() => {
     setStep("upload");
     setFile(null);
+    setProductDetails("");
     setPreviewUrl(null);
-    setOriginalImageUrl(null);
     setLoadingMessage("Uploading image...");
     setReview(emptyReview());
     setSaving(false);
-    setRegenerating(false);
     setGenNote(null);
     if (inputRef.current) inputRef.current.value = "";
   }, []);
@@ -200,19 +195,22 @@ export function AddProductByAI({
 
   useEffect(() => {
     if (step !== "loading") return;
-    const messages = ["Uploading image...", "Generating images with Gemini...", "Writing description with Gemini..."];
+    const messages = [
+      "Uploading image to Bunny...",
+      "Finding similar images with SerpAPI...",
+      "Writing title & description from your details...",
+    ];
     let i = 0;
     setLoadingMessage(messages[0]);
     const id = window.setInterval(() => {
       i = Math.min(i + 1, messages.length - 1);
       setLoadingMessage(messages[i]);
-    }, 4500);
+    }, 3500);
     return () => window.clearInterval(id);
   }, [step]);
 
-  const canGenerate = Boolean(file) && step === "upload";
+  const canGenerate = Boolean(file) && productDetails.trim().length >= 8 && step === "upload";
   const keptCount = review.images.filter(img => img.keep).length;
-  const replaceCount = review.images.filter(img => img.replace).length;
 
   const onPickFile = (next: File | null) => {
     if (!next) {
@@ -232,11 +230,17 @@ export function AddProductByAI({
 
   const runGenerate = async () => {
     if (!file) return;
+    const details = productDetails.trim();
+    if (details.length < 8) {
+      toast.error("Enter product details so we can write the title and description");
+      return;
+    }
     setStep("loading");
     setGenNote(null);
     try {
       const form = new FormData();
       form.append("image", file);
+      form.append("productDetails", details);
       const res = await fetch("/api/admin/generate-listing", {
         method: "POST",
         body: form,
@@ -249,21 +253,18 @@ export function AddProductByAI({
 
       const slots: ImageSlot[] = [];
       if (body.originalImageUrl) {
-        setOriginalImageUrl(body.originalImageUrl);
         slots.push({
           id: crypto.randomUUID(),
           url: body.originalImageUrl,
           keep: true,
-          replace: false,
           isOriginal: true,
         });
       }
-      for (const url of body.generatedImageUrls ?? []) {
+      for (const url of body.similarImageUrls ?? []) {
         slots.push({
           id: crypto.randomUUID(),
           url,
-          keep: true,
-          replace: false,
+          keep: false,
         });
       }
       if (!slots.length) {
@@ -271,8 +272,9 @@ export function AddProductByAI({
       }
 
       const notes: string[] = [];
-      if (body.imageErrors) notes.push(`${body.imageErrors} generated image(s) failed`);
-      if (body.listingError) notes.push("Listing copy failed — fill fields manually");
+      if (body.serpError) notes.push(`Similar image search: ${body.serpError}`);
+      if (body.listingError) notes.push(`Listing copy failed: ${body.listingError}`);
+      if (!(body.similarImageUrls?.length)) notes.push("No similar images found — you can still use the original");
       setGenNote(notes.length ? notes.join(". ") : null);
 
       const specs = Object.entries(body.suggested_attributes ?? {}).map(([label, value]) => ({
@@ -301,76 +303,6 @@ export function AddProductByAI({
     }
   };
 
-  const discardUnselected = () => {
-    setReview(r => ({
-      ...r,
-      images: r.images.filter(img => img.keep).map(img => ({ ...img, replace: false })),
-    }));
-  };
-
-  const regenerateMarked = async () => {
-    const marked = review.images.filter(img => img.replace);
-    if (!marked.length) {
-      toast.error("Mark images to regenerate (refresh icon), or unselect ones you don’t want and mark those");
-      return;
-    }
-    if (!file && !originalImageUrl) {
-      toast.error("Missing original reference image");
-      return;
-    }
-
-    setRegenerating(true);
-    try {
-      const form = new FormData();
-      form.append("count", String(marked.length));
-      if (file) form.append("image", file);
-      else if (originalImageUrl) form.append("referenceUrl", originalImageUrl);
-
-      const res = await fetch("/api/admin/regenerate-images", {
-        method: "POST",
-        body: form,
-        credentials: "include",
-      });
-      const body = (await res.json().catch(() => ({}))) as {
-        urls?: string[];
-        imageErrors?: number;
-        error?: string;
-      };
-      if (!res.ok) throw new Error(body.error || "Regeneration failed");
-
-      const newUrls = body.urls ?? [];
-      if (!newUrls.length) throw new Error("No new images returned");
-
-      let cursor = 0;
-      setReview(r => ({
-        ...r,
-        images: r.images.map(img => {
-          if (!img.replace) return img;
-          const nextUrl = newUrls[cursor++];
-          if (!nextUrl) return { ...img, replace: false };
-          return {
-            ...img,
-            id: crypto.randomUUID(),
-            url: nextUrl,
-            keep: true,
-            replace: false,
-            isOriginal: false,
-          };
-        }),
-      }));
-
-      if (body.imageErrors) {
-        toast.message(`Regenerated with ${body.imageErrors} failure(s)`);
-      } else {
-        toast.success(`Replaced ${Math.min(marked.length, newUrls.length)} image(s)`);
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Regeneration failed");
-    } finally {
-      setRegenerating(false);
-    }
-  };
-
   const categoryOptions = useMemo(() => {
     const set = new Set(PRODUCT_CATEGORIES);
     if (review.category && !set.has(review.category)) {
@@ -385,9 +317,9 @@ export function AddProductByAI({
       toast.error("Title is required");
       return;
     }
-    const keptImages = review.images.filter(img => img.keep).map(img => img.url);
-    if (!keptImages.length) {
-      toast.error("Select at least one image to keep");
+    const selected = review.images.filter(img => img.keep).map(img => img.url);
+    if (!selected.length) {
+      toast.error("Select at least one image");
       return;
     }
     const pricePerPc = Number(review.pricePerPc);
@@ -422,6 +354,24 @@ export function AddProductByAI({
 
     setSaving(true);
     try {
+      const importRes = await fetch("/api/admin/import-images", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls: selected }),
+      });
+      const importBody = (await importRes.json().catch(() => ({}))) as {
+        urls?: string[];
+        error?: string;
+      };
+      if (!importRes.ok) {
+        throw new Error(importBody.error || "Failed to save images to Bunny");
+      }
+      const bunnyUrls = importBody.urls ?? [];
+      if (!bunnyUrls.length) {
+        throw new Error("No images were uploaded to Bunny");
+      }
+
       const slug = `${slugify(name)}-${crypto.randomUUID().slice(0, 6)}`;
       const payload = productToPayload({
         slug,
@@ -434,7 +384,7 @@ export function AddProductByAI({
         status,
         tags: review.productTags,
         variants: [],
-        images: keptImages,
+        images: bunnyUrls,
         description: review.description.trim(),
         specs,
         sellerTips,
@@ -464,8 +414,8 @@ export function AddProductByAI({
             Add product by AI
           </DialogTitle>
           <DialogDescription>
-            Upload one product photo. Gemini generates extra angles and the listing copy — pick which images to keep,
-            regenerate any you don’t like, then set price &amp; quantity.
+            Upload a product photo and write what the product is. We find similar images via SerpAPI and Gemini writes
+            the title &amp; description from your details. Select images — they&apos;re saved to Bunny when you publish.
           </DialogDescription>
         </DialogHeader>
 
@@ -499,13 +449,28 @@ export function AddProductByAI({
                 {file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB
               </p>
             )}
+
+            <div className="space-y-2">
+              <Label htmlFor="ai-product-details">Product details *</Label>
+              <Textarea
+                id="ai-product-details"
+                rows={5}
+                value={productDetails}
+                onChange={e => setProductDetails(e.target.value)}
+                placeholder="e.g. Stainless steel water bottle, 750ml, leak-proof, matte black, wholesale MOQ friendly — mention brand, material, size, colors, use case, anything buyers need to know."
+              />
+              <p className="text-xs text-muted-foreground">
+                Gemini uses this to write the title and description. The more detail you give, the better the listing.
+              </p>
+            </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
               <Button type="button" disabled={!canGenerate} onClick={() => void runGenerate()} className="gap-2">
                 <Sparkles className="h-4 w-4" />
-                Generate
+                Find images &amp; write listing
               </Button>
             </DialogFooter>
           </div>
@@ -516,7 +481,7 @@ export function AddProductByAI({
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="font-medium">{loadingMessage}</p>
             <p className="text-xs text-muted-foreground max-w-sm">
-              Gemini generates 7 product angles in parallel and writes the title/description.
+              Searching similar photos and drafting title &amp; description from the details you entered.
             </p>
           </div>
         )}
@@ -531,73 +496,38 @@ export function AddProductByAI({
 
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label>Images — click to keep/discard · refresh to mark for regenerate</Label>
-                <p className="text-xs text-muted-foreground">
-                  Keeping {keptCount} · Marked {replaceCount}
-                </p>
+                <Label>Click images to select which ones to use</Label>
+                <p className="text-xs text-muted-foreground">Selected {keptCount}</p>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {review.images.map((img, index) => (
-                  <div
+                  <button
                     key={img.id}
+                    type="button"
                     className={cn(
-                      "relative rounded-lg border overflow-hidden bg-muted/30 aspect-square transition",
-                      img.keep ? "border-primary ring-2 ring-primary/30" : "border-border opacity-45",
-                      img.replace && "ring-2 ring-amber-400 border-amber-400",
+                      "relative rounded-lg border overflow-hidden bg-muted/30 aspect-square transition text-left",
+                      img.keep ? "border-primary ring-2 ring-primary/30" : "border-border opacity-50",
                     )}
+                    onClick={() =>
+                      setReview(r => ({
+                        ...r,
+                        images: r.images.map(x => (x.id === img.id ? { ...x, keep: !x.keep } : x)),
+                      }))
+                    }
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={img.url}
-                      alt={`Product ${index + 1}`}
-                      className="h-full w-full object-cover cursor-pointer"
-                      onClick={() =>
-                        setReview(r => ({
-                          ...r,
-                          images: r.images.map(x =>
-                            x.id === img.id ? { ...x, keep: !x.keep, replace: x.keep ? x.replace : false } : x,
-                          ),
-                        }))
-                      }
-                    />
-                    <button
-                      type="button"
+                    <img src={img.url} alt={`Product ${index + 1}`} className="h-full w-full object-cover" />
+                    <span
                       className={cn(
                         "absolute top-1.5 left-1.5 rounded-full p-1 text-white",
                         img.keep ? "bg-primary" : "bg-black/50",
                       )}
-                      aria-label={img.keep ? "Selected to keep" : "Discarded"}
-                      onClick={() =>
-                        setReview(r => ({
-                          ...r,
-                          images: r.images.map(x =>
-                            x.id === img.id ? { ...x, keep: !x.keep, replace: !x.keep ? false : x.replace } : x,
-                          ),
-                        }))
-                      }
                     >
                       <Check className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      className={cn(
-                        "absolute top-1.5 right-1.5 rounded-full p-1 text-white",
-                        img.replace ? "bg-amber-500" : "bg-black/60",
-                      )}
-                      aria-label="Mark to regenerate"
-                      title="Mark to regenerate"
-                      onClick={() =>
-                        setReview(r => ({
-                          ...r,
-                          images: r.images.map(x => (x.id === img.id ? { ...x, replace: !x.replace } : x)),
-                        }))
-                      }
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                    </button>
+                    </span>
                     {img.isOriginal && (
                       <span className="absolute bottom-1.5 left-1.5 rounded bg-black/70 text-white text-[10px] px-1.5 py-0.5">
-                        Original
+                        Your upload
                       </span>
                     )}
                     {img.keep && index === review.images.findIndex(i => i.keep) && (
@@ -605,30 +535,8 @@ export function AddProductByAI({
                         Cover
                       </span>
                     )}
-                  </div>
+                  </button>
                 ))}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={regenerating || keptCount === review.images.length}
-                  onClick={discardUnselected}
-                >
-                  Discard unselected
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  disabled={regenerating || replaceCount === 0}
-                  onClick={() => void regenerateMarked()}
-                >
-                  {regenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                  Regenerate marked ({replaceCount})
-                </Button>
               </div>
             </div>
 
@@ -736,18 +644,13 @@ export function AddProductByAI({
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button type="button" variant="outline" disabled={saving || regenerating} onClick={() => setStep("upload")}>
+              <Button type="button" variant="outline" disabled={saving} onClick={() => setStep("upload")}>
                 Start over
               </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={saving || regenerating}
-                onClick={() => void save("draft")}
-              >
+              <Button type="button" variant="secondary" disabled={saving} onClick={() => void save("draft")}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save as Draft"}
               </Button>
-              <Button type="button" disabled={saving || regenerating} onClick={() => void save("active")}>
+              <Button type="button" disabled={saving} onClick={() => void save("active")}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publish"}
               </Button>
             </DialogFooter>

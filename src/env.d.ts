@@ -10,7 +10,9 @@ namespace NodeJS {
     BUNNY_STORAGE_API_BASE?: string;
     /** Pull zone origin, e.g. https://cdn.example.com — no trailing slash */
     BUNNY_STORAGE_CDN_BASE?: string;
-    /** Google AI Studio / Gemini API key (server-only). Used for images + listing copy. */
+    /** Google AI Studio / Gemini API key (server-only). Used for listing copy. */
     GEMINI_API_KEY?: string;
+    /** SerpAPI key for Google Lens similar-image search (server-only). */
+    SERPAPI_KEY?: string;
   }
 }

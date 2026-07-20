@@ -17,7 +17,8 @@ export default function CataloguePage() {
   const [showFilters, setShowFilters] = useState(false);
   const [stockFilter, setStockFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
-  const [priceRange, setPriceRange] = useState([50, 2000]);
+  /** null = use full bounds from loaded products (avoids hiding items outside the old 50–2000 default). */
+  const [priceRange, setPriceRange] = useState<[number, number] | null>(null);
   const [visibleCount, setVisibleCount] = useState(8);
 
   const { data: chinaDeliveryPrices = [] } = useQuery({
@@ -32,21 +33,34 @@ export default function CataloguePage() {
     [products, catalogTab],
   );
 
-  const priceBounds = useMemo(() => {
-    if (catalogProducts.length === 0) return [50, 2000];
+  const priceBounds = useMemo((): [number, number] => {
+    if (catalogProducts.length === 0) return [0, 2000];
     const prices = catalogProducts.map(p => p.pricePerPc);
-    return [Math.floor(Math.min(...prices) / 10) * 10, Math.ceil(Math.max(...prices) / 10) * 10];
+    const min = Math.floor(Math.min(...prices) / 10) * 10;
+    const max = Math.ceil(Math.max(...prices) / 10) * 10;
+    return [Math.max(0, min), Math.max(min + 10, max)];
   }, [catalogProducts]);
+
+  const activePriceRange = priceRange ?? priceBounds;
 
   const filtered = useMemo(() => {
     let list = [...catalogProducts];
     if (activeCategory === "New this week") list = list.filter(p => p.tags.includes("new"));
     else if (activeCategory === "Trending") list = list.filter(p => p.tags.includes("hot"));
     else if (activeCategory !== "All") list = list.filter(p => p.category === activeCategory);
-    if (search) list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+    if (search) {
+      const q = search.toLowerCase().trim();
+      list = list.filter(
+        p =>
+          p.name.toLowerCase().includes(q) ||
+          p.category.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q) ||
+          p.sku.toLowerCase().includes(q),
+      );
+    }
     if (stockFilter === "in_stock") list = list.filter(p => p.stock > 0);
     if (stockFilter === "low_stock") list = list.filter(p => p.stock > 0 && p.stock < 100);
-    list = list.filter(p => p.pricePerPc >= priceRange[0] && p.pricePerPc <= priceRange[1]);
+    list = list.filter(p => p.pricePerPc >= activePriceRange[0] && p.pricePerPc <= activePriceRange[1]);
     if (sortBy === "price_asc") list.sort((a, b) => a.pricePerPc - b.pricePerPc);
     else if (sortBy === "price_desc") list.sort((a, b) => b.pricePerPc - a.pricePerPc);
     else if (sortBy === "trending") {
@@ -55,13 +69,14 @@ export default function CataloguePage() {
       list.sort((a, b) => score(b) - score(a));
     }
     return list;
-  }, [catalogProducts, activeCategory, search, stockFilter, sortBy, priceRange]);
+  }, [catalogProducts, activeCategory, search, stockFilter, sortBy, activePriceRange]);
 
   const switchTab = (tab: CatalogTab) => {
     setCatalogTab(tab);
     setActiveCategory("All");
     setVisibleCount(8);
-    setPriceRange(tab === "china" ? priceBounds : [50, 2000]);
+    setPriceRange(null);
+    setSearch("");
   };
 
   return (
@@ -167,13 +182,32 @@ export default function CataloguePage() {
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium block mb-2">Price range: Rs {priceRange[0]} – Rs {priceRange[1]}</label>
-              <input type="range" min={priceBounds[0]} max={priceBounds[1]} step={10} value={priceRange[1]} onChange={e => setPriceRange([priceRange[0], Number(e.target.value)])}
-                className="w-full accent-primary" />
+              <label className="text-sm font-medium block mb-2">
+                Price range: Rs {activePriceRange[0]} – Rs {activePriceRange[1]}
+              </label>
+              <input
+                type="range"
+                min={priceBounds[0]}
+                max={priceBounds[1]}
+                step={10}
+                value={activePriceRange[1]}
+                onChange={e => setPriceRange([activePriceRange[0], Number(e.target.value)])}
+                className="w-full accent-primary"
+              />
             </div>
           </div>
           <div className="flex gap-3 mt-4">
-            <button onClick={() => { setStockFilter("all"); setSortBy("newest"); setPriceRange(priceBounds); }} className="text-sm text-muted-foreground hover:text-foreground">Reset all</button>
+            <button
+              onClick={() => {
+                setStockFilter("all");
+                setSortBy("newest");
+                setPriceRange(null);
+                setActiveCategory("All");
+              }}
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Reset all
+            </button>
           </div>
         </div>
       )}
@@ -198,8 +232,14 @@ export default function CataloguePage() {
       )}
 
       {filtered.length === 0 && (
-        <div className="text-center py-16">
+        <div className="text-center py-16 space-y-2">
           <p className="text-muted-foreground">No products found in this catalog.</p>
+          {catalogProducts.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {catalogProducts.length} product(s) loaded but hidden by filters — try category “All”, clear search, and
+              Reset filters.
+            </p>
+          )}
         </div>
       )}
 

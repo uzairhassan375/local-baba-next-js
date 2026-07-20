@@ -1,12 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { uploadBufferToBunny } from "@/lib/bunny/storage";
-import {
-  emptyListing,
-  extensionForMime,
-  generateAndUploadProductImages,
-  generateListingCopyWithGemini,
-} from "@/lib/ai/geminiListing";
+import { emptyListing, extensionForMime, generateListingCopyWithGemini } from "@/lib/ai/geminiListing";
+import { findSimilarImagesWithSerpApi } from "@/lib/ai/serpImages";
 
 export const maxDuration = 300;
 
@@ -30,8 +26,12 @@ export async function POST(request: NextRequest) {
   }
 
   const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  const serpKey = process.env.SERPAPI_KEY?.trim() || process.env.SERP_API_KEY?.trim();
   if (!geminiKey) {
     return NextResponse.json({ error: "GEMINI_API_KEY must be configured on the server." }, { status: 500 });
+  }
+  if (!serpKey) {
+    return NextResponse.json({ error: "SERPAPI_KEY must be configured on the server." }, { status: 500 });
   }
 
   let form: FormData;
@@ -44,6 +44,17 @@ export async function POST(request: NextRequest) {
   const file = form.get("image");
   if (!(file instanceof File)) {
     return NextResponse.json({ error: 'Upload a single image as field "image"' }, { status: 400 });
+  }
+
+  const productDetails = String(form.get("productDetails") || "").trim();
+  if (productDetails.length < 8) {
+    return NextResponse.json(
+      { error: "Provide product details (at least a short description of what the product is)." },
+      { status: 400 },
+    );
+  }
+  if (productDetails.length > 4000) {
+    return NextResponse.json({ error: "Product details are too long (max 4000 characters)." }, { status: 400 });
   }
 
   const mimeType = file.type || "";
@@ -78,41 +89,42 @@ export async function POST(request: NextRequest) {
     apiKey: geminiKey,
     mimeType,
     base64,
+    productDetails,
   }).then(
     listing => ({ ok: true as const, listing }),
-    err => ({ ok: false as const, error: err instanceof Error ? err.message : "Listing failed" }),
+    err => {
+      console.error("Listing copy failed:", err);
+      return { ok: false as const, error: err instanceof Error ? err.message : "Listing failed" };
+    },
   );
 
-  const imagesPromise = generateAndUploadProductImages({
-    apiKey: geminiKey,
-    userId: user.id,
-    mimeType,
-    base64,
-    count: 7,
-    folder,
+  const serpPromise = findSimilarImagesWithSerpApi({
+    apiKey: serpKey,
+    imageUrl: originalImageUrl,
+    limit: 10,
   }).then(
-    result => ({ ok: true as const, ...result }),
+    images => ({ ok: true as const, images }),
     err => ({
       ok: false as const,
-      urls: [] as string[],
-      errors: 7,
-      error: err instanceof Error ? err.message : "Image generation failed",
+      images: [] as Array<{ url: string; title?: string; source?: string }>,
+      error: err instanceof Error ? err.message : "SerpAPI search failed",
     }),
   );
 
-  const [listingResult, imagesResult] = await Promise.all([listingPromise, imagesPromise]);
+  const [listingResult, serpResult] = await Promise.all([listingPromise, serpPromise]);
 
-  const generatedImageUrls = imagesResult.urls;
-  const imageErrors = imagesResult.errors;
+  const similarImages = serpResult.ok ? serpResult.images : [];
+  const similarImageUrls = similarImages.map(i => i.url);
+  const serpError = serpResult.ok ? null : serpResult.error;
   const listing = listingResult.ok ? listingResult.listing : emptyListing();
   const listingError = listingResult.ok ? null : listingResult.error;
 
-  if (!generatedImageUrls.length && listingError) {
+  if (!similarImageUrls.length && listingError) {
     return NextResponse.json(
       {
-        error: "AI generation failed for both images and listing copy",
+        error: "Failed to find similar images and write listing copy",
         listingError,
-        imageErrors,
+        serpError,
         originalImageUrl,
       },
       { status: 502 },
@@ -121,8 +133,10 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     originalImageUrl,
-    generatedImageUrls,
-    imageErrors,
+    /** External similar images from SerpAPI — user selects; uploaded to Bunny on save. */
+    similarImageUrls,
+    similarImages,
+    serpError,
     listingError,
     ...listing,
   });

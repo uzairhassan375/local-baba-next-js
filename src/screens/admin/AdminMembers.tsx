@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { toast } from "sonner";
+import { Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { fetchMembershipApplications } from "@/lib/supabase/applicationsApi";
 
@@ -26,6 +28,52 @@ export default function AdminMembersPage() {
 
   const approved = apps.filter(a => a.status === "approved");
 
+  const downloadCSV = () => {
+    if (approved.length === 0) {
+      toast.error("No member data to download");
+      return;
+    }
+
+    // Define headers
+    const headers = ["Name", "Email", "WhatsApp", "City", "Business Name", "Joined Date", "Status"];
+
+    // Map data rows
+    const rows = approved.map(m => [
+      m.name || "",
+      m.email || "",
+      m.whatsapp ? `+92${m.whatsapp}` : "",
+      m.city || "",
+      m.businessName || "",
+      formatJoined(m.appliedAt),
+      "active"
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row =>
+        row.map(val => {
+          // Escape quotes and wrap in quotes if contains comma, quote, or newline
+          const escaped = String(val).replace(/"/g, '""');
+          return `"${escaped}"`;
+        }).join(",")
+      )
+    ].join("\n");
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `local_baba_members_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success("CSV file downloaded successfully!");
+  };
+
   return (
     <AdminLayout>
       <div className="p-6 md:p-8 space-y-6">
@@ -36,9 +84,21 @@ export default function AdminMembersPage() {
               Members who completed registration (auto-approved). Order totals will appear here when orders are connected to members.
             </p>
           </div>
-          <Link href="/admin/applications" className="text-sm font-medium text-primary hover:underline shrink-0">
-            Review applications →
-          </Link>
+          <div className="flex items-center gap-3 shrink-0">
+            <Button
+              onClick={downloadCSV}
+              variant="outline"
+              size="sm"
+              className="gap-2 border-primary/20 hover:border-primary hover:text-primary transition-all duration-200"
+              disabled={approved.length === 0}
+            >
+              <Download size={16} />
+              Download CSV
+            </Button>
+            <Link href="/admin/applications" className="text-sm font-medium text-primary hover:underline">
+              Review applications →
+            </Link>
+          </div>
         </div>
 
         {isLoading ? (

@@ -24,7 +24,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex bg-background">
       <aside className="hidden md:flex flex-col w-[220px] bg-dark fixed top-0 bottom-0 z-40">
-        <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
+        <div className="h-16 flex items-center px-6 border-b border-white/10">
           <Link href="/admin/dashboard" className="font-heading font-bold text-lg text-primary-foreground">
             LB Admin<span className="text-primary">.</span>
           </Link>
@@ -47,8 +47,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 href={l.href}
                 className={`flex items-center gap-3 px-6 py-3 text-sm transition-colors ${
                   active
-                    ? "text-primary border-l-[3px] border-primary bg-sidebar-accent"
-                    : "text-sidebar-foreground hover:text-primary-foreground border-l-[3px] border-transparent"
+                    ? "text-primary border-l-[3px] border-primary bg-white/10 font-medium"
+                    : "text-gray-300 hover:text-white border-l-[3px] border-transparent hover:bg-white/5"
                 }`}
               >
                 <l.icon size={18} />
@@ -57,10 +57,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             );
           })}
         </div>
-        <div className="p-4 border-t border-sidebar-border mt-auto">
+        <div className="p-4 border-t border-white/10 mt-auto">
           <Button
             variant="ghost"
-            className="w-full justify-start gap-2 text-sidebar-foreground hover:text-primary-foreground"
+            className="w-full justify-start gap-2 text-gray-300 hover:text-white hover:bg-white/10"
             onClick={() => {
               void (async () => {
                 await logoutAdmin();

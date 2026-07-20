@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, X, ImagePlus, ChevronUp, ChevronDown, Star, FileSpreadsheet, LayoutTemplate } from "lucide-react";
+import { Plus, Pencil, Trash2, X, ImagePlus, ChevronUp, ChevronDown, Star, FileSpreadsheet, LayoutTemplate, Sparkles } from "lucide-react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { ProductMedia } from "@/components/ProductMedia";
 import type { Product } from "@/data/mockData";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { AddProductByAI } from "@/screens/admin/AddProductByAI";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -116,6 +117,7 @@ function productToForm(p: Product) {
 export default function AdminProductsPage() {
   const queryClient = useQueryClient();
   const [panelOpen, setPanelOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -410,10 +412,17 @@ export default function AdminProductsPage() {
               saved in Supabase.
             </p>
           </div>
-          <Button onClick={openAdd} className="gap-2 shrink-0">
-            <Plus size={18} /> Add product
-          </Button>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <Button variant="outline" onClick={() => setAiOpen(true)} className="gap-2">
+              <Sparkles size={18} /> Add Product by AI
+            </Button>
+            <Button onClick={openAdd} className="gap-2">
+              <Plus size={18} /> Add product
+            </Button>
+          </div>
         </div>
+
+        <AddProductByAI open={aiOpen} onOpenChange={setAiOpen} onSaved={invalidate} />
 
         <div className="rounded-card border border-border bg-card p-4 md:p-5 space-y-3">
           <div className="flex items-start gap-3">

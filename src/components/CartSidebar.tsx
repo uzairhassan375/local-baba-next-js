@@ -26,9 +26,9 @@ export function CartSidebar() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{item.name}</p>
                 <div className="flex items-center gap-2 mt-1">
-                  <button onClick={() => updateQty(item.productId, item.qty - 10)} className="w-6 h-6 rounded border border-border flex items-center justify-center text-xs">−</button>
+                  <button onClick={() => updateQty(item.productId, item.qty > 30 ? item.qty - 1 : Math.max(item.moq, item.qty - 10))} className="w-6 h-6 rounded border border-border flex items-center justify-center text-xs">−</button>
                   <span className="font-mono text-xs">{item.qty}</span>
-                  <button onClick={() => updateQty(item.productId, item.qty + 10)} className="w-6 h-6 rounded border border-border flex items-center justify-center text-xs">+</button>
+                  <button onClick={() => updateQty(item.productId, item.qty < 30 ? Math.min(30, item.qty + 10) : item.qty + 1)} className="w-6 h-6 rounded border border-border flex items-center justify-center text-xs">+</button>
                 </div>
                 <p className="text-sm font-heading font-bold text-primary mt-1">Rs {(item.pricePerPc * item.qty).toLocaleString()}</p>
               </div>

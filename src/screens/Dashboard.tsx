@@ -1,21 +1,15 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Heart, Megaphone } from "lucide-react";
+import { Megaphone, BookOpen, ArrowUpRight, TrendingUp, ShoppingBag, Globe2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useFavorites } from "@/contexts/FavoritesContext";
-import { orders } from "@/data/mockData";
+
 import { ProductCard } from "@/components/ProductCard";
 import { fetchTrendingThisWeek } from "@/lib/supabase/productsApi";
 import { fetchPublishedBlasts, blastVisibleForMemberCity } from "@/lib/supabase/blastsApi";
 import { useMergedCatalog } from "@/hooks/useMergedCatalog";
 
-const statusColors: Record<string, string> = {
-  processing: "bg-amber-100 text-amber-800",
-  dispatched: "bg-blue-100 text-blue-800",
-  delivered: "bg-olive/20 text-olive",
-  cancelled: "bg-danger/10 text-danger",
-};
+
 
 function StatValue({ value, prefix = "" }: { value?: number | null; prefix?: string }) {
   if (value == null || value === 0) {
@@ -31,8 +25,6 @@ function StatValue({ value, prefix = "" }: { value?: number | null; prefix?: str
 
 export default function DashboardPage() {
   const { member } = useAuth();
-  const { favoriteIds } = useFavorites();
-  const { merged: products } = useMergedCatalog();
 
   const { data: trendingFromDb } = useQuery({
     queryKey: ["trending-this-week"],
@@ -40,12 +32,7 @@ export default function DashboardPage() {
     staleTime: 30_000,
   });
   const trending = useMemo(() => trendingFromDb?.slice(0, 4) ?? [], [trendingFromDb]);
-  const recentOrders = orders.slice(0, 4);
 
-  const favoriteProducts = useMemo(
-    () => products.filter(p => favoriteIds.includes(p.id)),
-    [products, favoriteIds],
-  );
 
   const { data: publishedBlasts = [] } = useQuery({
     queryKey: ["blasts-published"],
@@ -117,29 +104,48 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Favourites */}
+      {/* Learn more about e-commerce */}
       <div>
-        <h3 className="font-heading font-bold text-lg mb-1 flex items-center gap-2">
-          <Heart size={18} className="text-primary" />
-          Your favourites
+        <h3 className="font-heading font-bold text-lg mb-3 flex items-center gap-2">
+          <BookOpen size={18} className="text-primary shrink-0" aria-hidden />
+          Learn more about e-commerce
         </h3>
-        <p className="text-xs text-muted-foreground mb-3">Products you saved with the heart icon</p>
-        {favoriteProducts.length === 0 ? (
-          <div className="bg-card rounded-card border border-dashed border-border p-8 text-center">
-            <Heart size={32} className="mx-auto text-muted-foreground/40 mb-3" />
-            <p className="text-sm text-muted-foreground">No favourites yet.</p>
-            <Link href="/catalogue" className="text-primary text-sm hover:underline inline-block mt-2">
-              Browse catalogue →
-            </Link>
+        <Link href="/blogs" className="block group">
+          <div className="relative overflow-hidden rounded-card border border-border bg-card p-5 hover:border-primary/40 transition-all duration-300 hover:shadow-md">
+            <div className="pointer-events-none absolute -top-10 -right-10 h-40 w-40 rounded-full bg-primary/5 blur-2xl" />
+            <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
+              {/* Text */}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Sourcing guides, Instagram growth tips, dropshipping strategies and Pakistan ecommerce trends — written for resellers like you.
+                </p>
+                {/* Topic chips */}
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {[
+                    { icon: Globe2,      label: "Sourcing from China" },
+                    { icon: TrendingUp,  label: "Instagram Growth"   },
+                    { icon: ShoppingBag, label: "Dropshipping UAE"   },
+                  ].map(({ icon: Icon, label }) => (
+                    <span key={label} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/15 text-primary text-[11px] font-mono">
+                      <Icon size={11} />
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              {/* CTA */}
+              <div className="shrink-0 self-center">
+                <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-primary bg-transparent text-primary font-mono text-xs font-semibold uppercase tracking-widest group-hover:bg-primary/8 transition-colors">
+                  Read blogs
+                  <ArrowUpRight size={13} className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </span>
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {favoriteProducts.map(p => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
-        )}
+        </Link>
       </div>
+
+
 
       {/* Trending */}
       <div>
@@ -157,46 +163,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Recent Orders */}
-      {recentOrders.length > 0 && (
-        <div>
-          <h3 className="font-heading font-bold text-lg mb-3">Recent orders</h3>
-          <div className="bg-card rounded-card border border-border overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left p-3 font-medium text-muted-foreground">Order ID</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Date</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Items</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Total</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentOrders.map(o => (
-                  <tr key={o.id} className="border-b border-border last:border-0">
-                    <td className="p-3 font-mono font-medium">#{o.id}</td>
-                    <td className="p-3 text-muted-foreground hidden md:table-cell">{new Date(o.createdAt).toLocaleDateString()}</td>
-                    <td className="p-3 text-muted-foreground hidden md:table-cell">{o.items.length} products</td>
-                    <td className="p-3 font-heading font-bold">Rs {o.total.toLocaleString()}</td>
-                    <td className="p-3">
-                      <span className={`px-2 py-0.5 rounded-pill text-xs font-medium ${statusColors[o.orderStatus]}`}>
-                        {o.orderStatus}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      <Link href={`/orders/${o.id}`} className="text-primary text-xs hover:underline">
-                        {o.orderStatus === "delivered" ? "Reorder" : "Track"}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

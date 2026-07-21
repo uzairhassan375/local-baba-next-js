@@ -87,6 +87,9 @@ function Nav() {
           <a href="#savings" className="transition duration-200 hover:text-primary/80 hover:-translate-y-[0.25px] font-bold">
             Pricing
           </a>
+          <Link href="/blogs" className="transition duration-200 hover:text-primary/80 hover:-translate-y-[0.25px] font-bold">
+            Blogs
+          </Link>
         </nav>
         <div className="flex items-center gap-2">
           <Link
@@ -723,9 +726,14 @@ function Footer() {
               </a>
             </li>
             <li>
-              <a href="#savings" className="text-white hover:text-slate-800 transition-colors">
+              <a href="/#savings" className="text-white hover:text-slate-800 transition-colors">
                 Pricing
               </a>
+            </li>
+            <li>
+              <Link href="/blogs" className="text-white hover:text-slate-800 transition-colors">
+                Blogs
+              </Link>
             </li>
           </ul>
         </div>

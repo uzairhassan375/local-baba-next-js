@@ -81,12 +81,12 @@ export function ProductCard({ product, deliveryPrice }: Props) {
           <>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setQty(Math.max(product.moq, qty - 10))}
+                onClick={() => setQty(qty > 30 ? qty - 1 : Math.max(product.moq, qty - 10))}
                 className="w-8 h-8 rounded border border-border flex items-center justify-center text-foreground hover:bg-muted transition-colors"
               >−</button>
               <span className="font-mono text-sm w-10 text-center">{qty}</span>
               <button
-                onClick={() => setQty(qty + 10)}
+                onClick={() => setQty(qty < 30 ? Math.min(30, qty + 10) : qty + 1)}
                 className="w-8 h-8 rounded border border-border flex items-center justify-center text-foreground hover:bg-muted transition-colors"
               >+</button>
             </div>

@@ -137,9 +137,9 @@ export default function ProductDetailPage() {
           {!isSoldOut ? (
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <button onClick={() => setQty(Math.max(product.moq, qty - 10))} className="w-12 h-12 rounded-lg border border-border flex items-center justify-center text-lg hover:bg-muted">−</button>
+                <button onClick={() => setQty(qty > 30 ? qty - 1 : Math.max(product.moq, qty - 10))} className="w-12 h-12 rounded-lg border border-border flex items-center justify-center text-lg hover:bg-muted">−</button>
                 <span className="font-mono text-lg w-16 text-center">{qty}</span>
-                <button onClick={() => setQty(qty + 10)} className="w-12 h-12 rounded-lg border border-border flex items-center justify-center text-lg hover:bg-muted">+</button>
+                <button onClick={() => setQty(qty < 30 ? Math.min(30, qty + 10) : qty + 1)} className="w-12 h-12 rounded-lg border border-border flex items-center justify-center text-lg hover:bg-muted">+</button>
               </div>
               <p className="text-sm text-muted-foreground">{qty} pcs = Rs {totalPrice.toLocaleString()}</p>
               <button onClick={handleAdd} className="w-full h-[52px] rounded-lg bg-primary text-primary-foreground font-heading font-semibold text-lg hover:bg-accent-hover transition-all active:scale-[0.97]">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Grid3X3, Package, MapPin, Users, User, MessageCircle } from "lucide-react";
+import { LayoutDashboard, Grid3X3, Package, MapPin, Users, User, MessageCircle, Heart } from "lucide-react";
 import { CartSidebar } from "@/components/CartSidebar";
 
 const sidebarLinks = [
@@ -8,6 +8,7 @@ const sidebarLinks = [
   { label: "Catalogue", href: "/catalogue", icon: Grid3X3 },
   { label: "My Orders", href: "/orders", icon: Package },
   { label: "Track Order", href: "/orders", icon: MapPin },
+  { label: "Favourites", href: "/favourites", icon: Heart },
   { label: "Community", href: "/community", icon: Users },
   { label: "My Profile", href: "/profile", icon: User },
 ];
@@ -25,6 +26,7 @@ export function MemberLayout({ children }: { children: React.ReactNode }) {
               pathname === l.href ||
               (l.href === "/orders" && pathname?.startsWith("/orders")) ||
               (l.href === "/catalogue" && pathname?.startsWith("/catalogue")) ||
+              (l.href === "/favourites" && pathname?.startsWith("/favourites")) ||
               (l.href === "/profile" && pathname?.startsWith("/profile")) ||
               (l.href === "/community" && pathname?.startsWith("/community"));
             return (

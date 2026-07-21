@@ -1,9 +1,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Grid3X3, Package, Users, User, Menu, X, ShoppingCart } from "lucide-react";
+import { Home, Grid3X3, Package, Users, User, Menu, X, ShoppingCart, Heart } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { useFavorites } from "@/contexts/FavoritesContext";
 
 const navLinks = [
   { label: "Catalogue", href: "/catalogue" },
@@ -16,6 +17,7 @@ const mobileTabLinks = [
   { label: "Home", href: "/dashboard", icon: Home },
   { label: "Catalogue", href: "/catalogue", icon: Grid3X3 },
   { label: "Orders", href: "/orders", icon: Package },
+  { label: "Favourites", href: "/favourites", icon: Heart },
   { label: "Community", href: "/community", icon: Users },
   { label: "Account", href: "/profile", icon: User },
 ];
@@ -25,6 +27,7 @@ export function MemberNavbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const { member, logout } = useAuth();
   const { openCart, itemCount } = useCart();
+  const { favoriteIds } = useFavorites();
   const pathname = usePathname();
   const initials = member?.name?.split(" ").map(w => w[0]).join("").slice(0, 2) || "MB";
 
@@ -45,6 +48,17 @@ export function MemberNavbar() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link href="/favourites" className="relative text-foreground p-2" aria-label="Favourites">
+              <Heart
+                size={20}
+                className={favoriteIds.length > 0 ? "fill-red-500 text-red-500" : "text-foreground"}
+              />
+              {favoriteIds.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {favoriteIds.length > 99 ? "99+" : favoriteIds.length}
+                </span>
+              )}
+            </Link>
             <button onClick={openCart} className="relative text-foreground p-2" aria-label="Cart">
               <ShoppingCart size={20} />
               {itemCount > 0 && (

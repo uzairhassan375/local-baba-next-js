@@ -42,7 +42,7 @@ export function ProductCard({ product, deliveryPrice }: Props) {
   return (
     <div className="bg-card rounded-card border border-border overflow-hidden group transition-shadow hover:shadow-card">
       <Link href={`/product/${product.slug}`} className="block">
-        <div className={`relative aspect-square bg-muted overflow-hidden ${isSoldOut ? "grayscale" : ""}`}>
+        <div className={`relative aspect-[4/3] bg-muted overflow-hidden ${isSoldOut ? "grayscale" : ""}`}>
           <ProductMedia
             src={product.images[0]}
             alt={product.name}
@@ -83,7 +83,7 @@ export function ProductCard({ product, deliveryPrice }: Props) {
               <button
                 onClick={() => setQty(qty > 30 ? qty - 1 : Math.max(product.moq, qty - 10))}
                 className="w-8 h-8 rounded border border-border flex items-center justify-center text-foreground hover:bg-muted transition-colors"
-              >−</button>
+              ></button>
               <span className="font-mono text-sm w-10 text-center">{qty}</span>
               <button
                 onClick={() => setQty(qty < 30 ? Math.min(30, qty + 10) : qty + 1)}

@@ -21,7 +21,6 @@ export default function AdminDashboardPage() {
   const stats = [
     { label: "Live catalogue products", value: cloudProducts.length.toString() },
     { label: "Approved members", value: approvedCount.toString() },
-    { label: "Revenue this month", value: "Rs 4,82,000" },
   ];
 
   return (
@@ -36,7 +35,7 @@ export default function AdminDashboardPage() {
             Manage products →
           </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {stats.map(s => (
             <div key={s.label} className="bg-card rounded-card border border-border p-5">
               <p className="text-xs text-muted-foreground">{s.label}</p>

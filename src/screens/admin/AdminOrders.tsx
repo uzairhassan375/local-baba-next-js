@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { orders as initialOrders } from "@/data/mockData";
+import { Package } from "lucide-react";
 
 const statusColors: Record<string, string> = {
   processing: "bg-amber-100 text-amber-800",
@@ -9,8 +9,25 @@ const statusColors: Record<string, string> = {
   cancelled: "bg-danger/10 text-danger",
 };
 
+type OrderStatus = "processing" | "dispatched" | "delivered" | "cancelled";
+
+interface LiveOrder {
+  id: string;
+  memberId: string;
+  items: { productId: string; name: string; qty: number; pricePerPc: number }[];
+  total: number;
+  paymentMethod: string;
+  paymentStatus: string;
+  orderStatus: OrderStatus;
+  createdAt: string;
+  deliveryAddress: string;
+  city: string;
+  courier?: string;
+  trackingNumber?: string;
+}
+
 export default function AdminOrdersPage() {
-  const [orderList, setOrderList] = useState(initialOrders);
+  const [orderList, setOrderList] = useState<LiveOrder[]>([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [dispatchModal, setDispatchModal] = useState<string | null>(null);
@@ -19,16 +36,18 @@ export default function AdminOrdersPage() {
 
   const filtered = orderList
     .filter(o => statusFilter === "all" || o.orderStatus === statusFilter)
-    .filter(o => !search || o.id.includes(search));
+    .filter(o => !search || o.id.toLowerCase().includes(search.toLowerCase()));
 
   const updateStatus = (id: string, status: string) => {
     if (status === "dispatched") { setDispatchModal(id); return; }
-    setOrderList(prev => prev.map(o => o.id === id ? { ...o, orderStatus: status as any } : o));
+    setOrderList(prev => prev.map(o => o.id === id ? { ...o, orderStatus: status as OrderStatus } : o));
   };
 
   const confirmDispatch = () => {
     if (!dispatchModal) return;
-    setOrderList(prev => prev.map(o => o.id === dispatchModal ? { ...o, orderStatus: "dispatched" as any, courier, trackingNumber: trackingNum } : o));
+    setOrderList(prev => prev.map(o =>
+      o.id === dispatchModal ? { ...o, orderStatus: "dispatched" as OrderStatus, courier, trackingNumber: trackingNum } : o
+    ));
     setDispatchModal(null);
     setTrackingNum("");
   };
@@ -43,38 +62,55 @@ export default function AdminOrdersPage() {
             <option value="processing">Processing</option>
             <option value="dispatched">Dispatched</option>
             <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
           </select>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search order ID..." className="h-10 px-3 rounded-lg border border-border bg-card text-sm focus:border-primary focus:outline-none" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search order ID..."
+            className="h-10 px-3 rounded-lg border border-border bg-card text-sm focus:border-primary focus:outline-none"
+          />
         </div>
-        <div className="bg-card rounded-card border border-border overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead><tr className="border-b border-border bg-muted/50">
-              <th className="text-left p-3 font-medium text-muted-foreground">Order ID</th>
-              <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Items</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Total</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Actions</th>
-            </tr></thead>
-            <tbody>
-              {filtered.map(o => (
-                <tr key={o.id} className="border-b border-border last:border-0">
-                  <td className="p-3 font-mono font-medium">#{o.id}</td>
-                  <td className="p-3 text-muted-foreground hidden md:table-cell">{o.items.length} items</td>
-                  <td className="p-3">Rs {o.total.toLocaleString()}</td>
-                  <td className="p-3"><span className={`px-2 py-0.5 rounded-pill text-xs font-medium ${statusColors[o.orderStatus]}`}>{o.orderStatus}</span></td>
-                  <td className="p-3">
-                    <select onChange={e => updateStatus(o.id, e.target.value)} value={o.orderStatus} className="h-7 px-2 rounded border border-border text-xs bg-card">
-                      <option value="processing">Processing</option>
-                      <option value="dispatched">Dispatched</option>
-                      <option value="delivered">Delivered</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+
+        {filtered.length === 0 ? (
+          <div className="bg-card rounded-card border border-border p-16 text-center">
+            <Package size={48} className="mx-auto text-muted-foreground mb-4" />
+            <p className="font-heading font-semibold text-lg mb-1">No orders yet</p>
+            <p className="text-sm text-muted-foreground">
+              Orders placed by members will appear here once received.
+            </p>
+          </div>
+        ) : (
+          <div className="bg-card rounded-card border border-border overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-border bg-muted/50">
+                <th className="text-left p-3 font-medium text-muted-foreground">Order ID</th>
+                <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Items</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Total</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Actions</th>
+              </tr></thead>
+              <tbody>
+                {filtered.map(o => (
+                  <tr key={o.id} className="border-b border-border last:border-0">
+                    <td className="p-3 font-mono font-medium">#{o.id}</td>
+                    <td className="p-3 text-muted-foreground hidden md:table-cell">{o.items.length} items</td>
+                    <td className="p-3">Rs {o.total.toLocaleString()}</td>
+                    <td className="p-3"><span className={`px-2 py-0.5 rounded-pill text-xs font-medium ${statusColors[o.orderStatus]}`}>{o.orderStatus}</span></td>
+                    <td className="p-3">
+                      <select onChange={e => updateStatus(o.id, e.target.value)} value={o.orderStatus} className="h-7 px-2 rounded border border-border text-xs bg-card">
+                        <option value="processing">Processing</option>
+                        <option value="dispatched">Dispatched</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {dispatchModal && (
           <>

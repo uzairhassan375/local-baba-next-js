@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Package } from "lucide-react";
-import { orders } from "@/data/mockData";
+import { useOrders } from "@/contexts/OrdersContext";
 
 const statusColors: Record<string, string> = {
   processing: "bg-amber-100 text-amber-800",
@@ -13,6 +13,7 @@ const statusColors: Record<string, string> = {
 const tabs = ["All", "Processing", "Dispatched", "Delivered", "Cancelled"];
 
 export default function OrdersPage() {
+  const { orders } = useOrders();
   const [activeTab, setActiveTab] = useState("All");
 
   const filtered = activeTab === "All" ? orders : orders.filter(o => o.orderStatus === activeTab.toLowerCase());

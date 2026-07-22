@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { ProfileProvider } from "@/contexts/ProfileContext";
+import { OrdersProvider } from "@/contexts/OrdersContext";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -17,12 +18,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         <FavoritesProvider>
           <ProfileProvider>
-            <CartProvider>
-              <TooltipProvider>
-                <Sonner />
-                {children}
-              </TooltipProvider>
-            </CartProvider>
+            <OrdersProvider>
+              <CartProvider>
+                <TooltipProvider>
+                  <Sonner />
+                  {children}
+                </TooltipProvider>
+              </CartProvider>
+            </OrdersProvider>
           </ProfileProvider>
         </FavoritesProvider>
       </AuthProvider>

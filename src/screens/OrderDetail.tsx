@@ -4,7 +4,8 @@ import { Copy, Check, ExternalLink } from "lucide-react";
 import { useState } from "react";
 
 import { ProductMedia } from "@/components/ProductMedia";
-import { orders } from "@/data/mockData";
+import { orders as mockOrders } from "@/data/mockData";
+import { useOrders } from "@/contexts/OrdersContext";
 
 const statusColors: Record<string, string> = {
   processing: "bg-amber-100 text-amber-800",
@@ -22,7 +23,8 @@ const paymentStatusColors: Record<string, string> = {
 export default function OrderDetailPage() {
   const params = useParams();
   const id = typeof params?.id === "string" ? params.id : undefined;
-  const order = id ? orders.find(o => o.id === id) : undefined;
+  const { getOrderById } = useOrders();
+  const order = id ? (getOrderById(id) || mockOrders.find(o => o.id === id)) : undefined;
   const [copied, setCopied] = useState("");
 
   const handleCopy = (text: string, key: string) => {

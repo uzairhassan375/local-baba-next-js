@@ -1,18 +1,17 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Megaphone, BookOpen, ArrowUpRight, TrendingUp, ShoppingBag, Globe2 } from "lucide-react";
+import { Megaphone, BookOpen, ArrowRight, Clock, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOrders } from "@/contexts/OrdersContext";
 
 import { ProductCard } from "@/components/ProductCard";
+import { ProductMedia } from "@/components/ProductMedia";
 import { fetchTrendingThisWeek } from "@/lib/supabase/productsApi";
 import { fetchPublishedBlasts, blastVisibleForMemberCity } from "@/lib/supabase/blastsApi";
-import { useMergedCatalog } from "@/hooks/useMergedCatalog";
-
-
 
 function StatValue({ value, prefix = "" }: { value?: number | null; prefix?: string }) {
-  if (value == null || value === 0) {
+  if (value == null) {
     return <p className="font-heading font-bold text-xl text-muted-foreground/60">—</p>;
   }
   return (
@@ -23,8 +22,52 @@ function StatValue({ value, prefix = "" }: { value?: number | null; prefix?: str
   );
 }
 
+const ecommerceBlogs = [
+  {
+    id: "4",
+    title: "How to Source Products from China: 2026 Beginner's Guide",
+    category: "Sourcing Guide",
+    readTime: "12 min read",
+    image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=600&h=450&fit=crop",
+    excerpt: "Step-by-step guide for Pakistani resellers on finding factory suppliers, price negotiation, and shipping safely.",
+    tag: "SOURCING",
+    tagClass: "bg-primary text-primary-foreground",
+  },
+  {
+    id: "2",
+    title: "Dropshipping in UAE: Handling Customer Reviews & Returns",
+    category: "Dropshipping Tips",
+    readTime: "8 min read",
+    image: "https://images.unsplash.com/photo-1551434678-e076c223a692?w=600&h=450&fit=crop",
+    excerpt: "How to protect your store reputation and manage cross-border returns effectively without losing profits.",
+    tag: "DROPSHIPPING",
+    tagClass: "bg-blue-600 text-white",
+  },
+  {
+    id: "3",
+    title: "Best Suppliers in Saudi Arabia: Ecommerce Blueprint 2026",
+    category: "Supplier Guide",
+    readTime: "10 min read",
+    image: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600&h=450&fit=crop",
+    excerpt: "Comparing top suppliers, ZATCA VAT rules, and high-margin product niches for Saudi market resellers.",
+    tag: "MARKET GUIDE",
+    tagClass: "bg-emerald-600 text-white",
+  },
+  {
+    id: "1",
+    title: "The Local Baba Reviews: What Resellers Are Saying in 2026",
+    category: "Reseller Reviews",
+    readTime: "6 min read",
+    image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&h=450&fit=crop",
+    excerpt: "Genuine reseller stories, 15-35% importer savings, and member experiences across Lahore, Karachi, and Islamabad.",
+    tag: "REVIEWS",
+    tagClass: "bg-amber-600 text-white",
+  },
+];
+
 export default function DashboardPage() {
   const { member } = useAuth();
+  const { orders } = useOrders();
 
   const { data: trendingFromDb } = useQuery({
     queryKey: ["trending-this-week"],
@@ -32,7 +75,6 @@ export default function DashboardPage() {
     staleTime: 30_000,
   });
   const trending = useMemo(() => trendingFromDb?.slice(0, 4) ?? [], [trendingFromDb]);
-
 
   const { data: publishedBlasts = [] } = useQuery({
     queryKey: ["blasts-published"],
@@ -47,7 +89,7 @@ export default function DashboardPage() {
   const monthlySpend = member?.totalSpent && member.totalSpent > 0 ? member.totalSpent : null;
 
   return (
-    <div className="p-4 md:p-8 space-y-6 animate-fade-in-up">
+    <div className="p-4 md:p-8 space-y-8 animate-fade-in-up">
       {/* Welcome */}
       <div className="bg-dark rounded-card p-6 border-l-4 border-primary">
         <p className="font-heading font-bold text-xl md:text-2xl text-primary-foreground">
@@ -59,7 +101,7 @@ export default function DashboardPage() {
         <div className="flex flex-wrap gap-6 mt-4">
           <div>
             <p className="text-xs text-muted-foreground">Total orders</p>
-            <StatValue value={member?.totalOrders} />
+            <StatValue value={orders.length} />
           </div>
           <div>
             <p className="text-xs text-muted-foreground">This month</p>
@@ -104,48 +146,68 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Learn more about e-commerce */}
-      <div>
-        <h3 className="font-heading font-bold text-lg mb-3 flex items-center gap-2">
-          <BookOpen size={18} className="text-primary shrink-0" aria-hidden />
-          Learn more about e-commerce
-        </h3>
-        <Link href="/blogs" className="block group">
-          <div className="relative overflow-hidden rounded-card border border-border bg-card p-5 hover:border-primary/40 transition-all duration-300 hover:shadow-md">
-            <div className="pointer-events-none absolute -top-10 -right-10 h-40 w-40 rounded-full bg-primary/5 blur-2xl" />
-            <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
-              {/* Text */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Sourcing guides, Instagram growth tips, dropshipping strategies and Pakistan ecommerce trends — written for resellers like you.
+      {/* Learn more about e-commerce (Product Style Blog Grid) */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-heading font-bold text-lg flex items-center gap-2">
+            <BookOpen size={20} className="text-primary shrink-0" aria-hidden />
+            Learn more about e-commerce
+          </h3>
+          <Link
+            href="/blogs"
+            className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+          >
+            View all blogs <ArrowRight size={14} />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          {ecommerceBlogs.map(blog => (
+            <div
+              key={blog.id}
+              className="bg-card rounded-card border border-border overflow-hidden group transition-all duration-300 hover:shadow-card hover:border-primary/40 flex flex-col h-full"
+            >
+              <Link href="/blogs" className="block relative aspect-[4/3] bg-muted overflow-hidden">
+                <ProductMedia
+                  src={blog.image}
+                  alt={blog.title}
+                  loading="lazy"
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                <span
+                  className={`absolute top-2 left-2 px-2 py-0.5 rounded-pill text-[10px] uppercase font-bold tracking-wide ${blog.tagClass}`}
+                >
+                  {blog.tag}
+                </span>
+              </Link>
+              <div className="p-4 flex flex-col flex-1 space-y-2">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
+                  <span>{blog.category}</span>
+                  <span className="flex items-center gap-1">
+                    <Clock size={11} /> {blog.readTime}
+                  </span>
+                </div>
+                <Link href="/blogs" className="block">
+                  <h4 className="font-heading font-semibold text-sm leading-snug line-clamp-2 text-foreground hover:text-primary transition-colors">
+                    {blog.title}
+                  </h4>
+                </Link>
+                <p className="text-xs text-muted-foreground line-clamp-2 flex-1 leading-relaxed">
+                  {blog.excerpt}
                 </p>
-                {/* Topic chips */}
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {[
-                    { icon: Globe2,      label: "Sourcing from China" },
-                    { icon: TrendingUp,  label: "Instagram Growth"   },
-                    { icon: ShoppingBag, label: "Dropshipping UAE"   },
-                  ].map(({ icon: Icon, label }) => (
-                    <span key={label} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/15 text-primary text-[11px] font-mono">
-                      <Icon size={11} />
-                      {label}
-                    </span>
-                  ))}
+                <div className="pt-2">
+                  <Link
+                    href="/blogs"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-accent-hover transition-colors"
+                  >
+                    Read article <ArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
+                  </Link>
                 </div>
               </div>
-              {/* CTA */}
-              <div className="shrink-0 self-center">
-                <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-primary bg-transparent text-primary font-mono text-xs font-semibold uppercase tracking-widest group-hover:bg-primary/8 transition-colors">
-                  Read blogs
-                  <ArrowUpRight size={13} className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                </span>
-              </div>
             </div>
-          </div>
-        </Link>
+          ))}
+        </div>
       </div>
-
-
 
       {/* Trending */}
       <div>
@@ -162,8 +224,6 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
-
-
     </div>
   );
 }

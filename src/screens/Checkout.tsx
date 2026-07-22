@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
+import { useOrders } from "@/contexts/OrdersContext";
 import { Copy, Check, MapPin, Plus } from "lucide-react";
 
 const cities = ["Lahore", "Karachi", "Islamabad", "Faisalabad", "Rawalpindi", "Multan", "Peshawar", "Quetta", "Other"];
@@ -17,6 +18,7 @@ export default function CheckoutPage() {
   const { items, total, clearCart } = useCart();
   const { member } = useAuth();
   const { addresses, defaultAddress } = useProfile();
+  const { addOrder } = useOrders();
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -61,8 +63,22 @@ export default function CheckoutPage() {
     if (!form.name || !form.whatsapp || !form.address || !form.city || !paymentMethod) return;
     setLoading(true);
     setTimeout(() => {
+      const createdOrder = addOrder({
+        items: items.map(i => ({
+          productId: i.productId,
+          name: i.name,
+          qty: i.qty,
+          pricePerPc: i.pricePerPc,
+          image: i.image,
+        })),
+        total,
+        paymentMethod,
+        deliveryAddress: `${form.address}${form.landmark ? `, ${form.landmark}` : ""}, ${form.city}`,
+        city: form.city,
+        notes: form.notes,
+      });
       clearCart();
-      router.push("/order/LB-2847");
+      router.push(`/order/${createdOrder.id}`);
     }, 1500);
   };
 

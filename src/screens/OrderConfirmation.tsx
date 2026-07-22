@@ -1,19 +1,37 @@
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { CheckCircle, Copy, Check } from "lucide-react";
 import { useState } from "react";
-
-const timeline = [
-  { step: "Order received", time: "10 Apr, 3:45 PM", status: "completed" as const },
-  { step: "Payment confirmation", time: "within 2 hours of transfer", status: "active" as const },
-  { step: "Dispatched within 48 hours", time: null, status: "pending" as const },
-  { step: "WhatsApp tracking sent to +92-300-XXXXXXX", time: null, status: "pending" as const },
-];
+import { useOrders } from "@/contexts/OrdersContext";
 
 export default function OrderConfirmationPage() {
+  const params = useParams();
+  const id = typeof params?.id === "string" ? params.id : "LB-2847";
+  const { getOrderById } = useOrders();
+  const order = getOrderById(id);
   const [copied, setCopied] = useState(false);
 
+  const orderId = order?.id || id;
+  const totalAmount = order?.total ? order.total.toLocaleString() : "28,400";
+  const formattedDate = order?.createdAt
+    ? new Date(order.createdAt).toLocaleString(undefined, {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "Recently placed";
+
+  const timeline = order?.timeline || [
+    { step: "Order received", timestamp: formattedDate, status: "completed" as const },
+    { step: "Payment confirmation", timestamp: "within 2 hours of transfer", status: "active" as const },
+    { step: "Dispatched within 48 hours", timestamp: null, status: "pending" as const },
+    { step: "WhatsApp tracking sent", timestamp: null, status: "pending" as const },
+  ];
+
   const copyAll = () => {
-    const text = `Bank: Meezan Bank\nAccount: The Local Baba Trading\nIBAN: PK00MEZN000123456789\nAmount: Rs 28,400\nReference: LB-2847`;
+    const text = `Bank: Meezan Bank\nAccount: The Local Baba Trading\nIBAN: PK00MEZN000123456789\nAmount: Rs ${totalAmount}\nReference: ${orderId}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -28,17 +46,17 @@ export default function OrderConfirmationPage() {
             <CheckCircle size={36} className="text-primary-foreground" />
           </div>
           <h1 className="font-heading font-bold text-3xl mt-4">Order placed!</h1>
-          <p className="font-mono text-muted-foreground mt-1">Order #LB-2847 · 10 April 2026, 3:45 PM</p>
+          <p className="font-mono text-muted-foreground mt-1">Order #{orderId} · {formattedDate}</p>
         </div>
 
         {/* Payment reminder */}
         <div className="bg-amber-50 border border-amber-200 rounded-card p-5 space-y-3">
-          <p className="text-sm font-medium">To confirm your order, transfer Rs 28,400 to:</p>
+          <p className="text-sm font-medium">To confirm your order, transfer Rs {totalAmount} to:</p>
           <div className="space-y-1 text-sm">
             <p>Bank: <strong>Meezan Bank</strong></p>
             <p>Account: <strong>The Local Baba Trading</strong></p>
             <p>IBAN: <strong className="font-mono">PK00MEZN000123456789</strong></p>
-            <p className="text-muted-foreground text-xs">Use order #LB-2847 as your transfer reference</p>
+            <p className="text-muted-foreground text-xs">Use order #{orderId} as your transfer reference</p>
           </div>
           <button onClick={copyAll} className="flex items-center gap-2 h-9 px-4 rounded-lg border border-border text-sm hover:bg-card transition-colors">
             {copied ? <Check size={14} /> : <Copy size={14} />}
@@ -60,7 +78,7 @@ export default function OrderConfirmationPage() {
                 </div>
                 <div className="pb-6">
                   <p className={`text-sm font-medium ${t.status === "pending" ? "text-muted-foreground" : ""}`}>{t.step}</p>
-                  {t.time && <p className="text-xs text-muted-foreground mt-0.5">{t.time}</p>}
+                  {"timestamp" in t && t.timestamp && <p className="text-xs text-muted-foreground mt-0.5">{t.timestamp}</p>}
                 </div>
               </div>
             ))}
@@ -69,7 +87,7 @@ export default function OrderConfirmationPage() {
 
         {/* Actions */}
         <div className="space-y-3">
-          <Link href="/orders/LB-2847" className="block w-full h-12 rounded-lg bg-primary text-primary-foreground text-center leading-[48px] font-heading font-semibold hover:bg-accent-hover transition-colors">
+          <Link href={`/orders/${orderId}`} className="block w-full h-12 rounded-lg bg-primary text-primary-foreground text-center leading-[48px] font-heading font-semibold hover:bg-accent-hover transition-colors">
             View order details
           </Link>
           <Link href="/catalogue" className="block w-full h-12 rounded-lg border border-border text-center leading-[48px] text-sm hover:bg-muted transition-colors">

@@ -213,7 +213,7 @@ export default function CataloguePage() {
       )}
 
       {/* Product grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {filtered.slice(0, visibleCount).map(p => (
           <ProductCard
             key={p.id}

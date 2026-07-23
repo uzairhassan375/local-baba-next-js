@@ -475,8 +475,82 @@ export default function AdminInvoicesPage() {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  // Overall Tab Separation Filter (All, Auto DB, Manual Custom)
+  const [overallFilterTab, setOverallFilterTab] = useState<"all" | "auto" | "manual">("all");
+
+  // Single Printable Invoice Data State & Print Trigger
+  interface PrintableInvoiceData {
+    invoiceNumber: string;
+    date: string;
+    customerName: string;
+    customerPhone?: string;
+    deliveryAddress?: string;
+    city?: string;
+    items: { description: string; qty: number; rate: number; amount: number }[];
+    subtotal: number;
+    deliveryCharges: number;
+    discount: number;
+    total: number;
+    paymentStatus: string;
+    paymentMethod: string;
+    notes?: string;
+  }
+
+  const [printableData, setPrintableData] = useState<PrintableInvoiceData | null>(null);
+
+  const handlePrintData = (data: PrintableInvoiceData) => {
+    setPrintableData(data);
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
+  const printAutoOrder = (ord: Order) => {
+    handlePrintData({
+      invoiceNumber: `#${ord.id}`,
+      date: new Date(ord.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
+      customerName: ord.customerName || `Member #${ord.memberId}`,
+      customerPhone: (ord as any).customerPhone || "N/A",
+      deliveryAddress: ord.deliveryAddress || "Lahore Market",
+      city: ord.city || "Lahore",
+      items: ord.items.map(i => ({
+        description: i.name,
+        qty: i.qty,
+        rate: i.pricePerPc,
+        amount: i.qty * i.pricePerPc,
+      })),
+      subtotal: ord.items.reduce((s, i) => s + i.qty * i.pricePerPc, 0),
+      deliveryCharges: ord.deliveryCharges ?? 250,
+      discount: ord.discount ?? 0,
+      total: ord.total,
+      paymentStatus: ord.paymentStatus,
+      paymentMethod: ord.paymentMethod,
+      notes: ord.notes,
+    });
+  };
+
+  const printManualInvoice = (inv: ManualInvoice) => {
+    handlePrintData({
+      invoiceNumber: inv.invoiceNumber,
+      date: new Date(inv.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
+      customerName: inv.customerName,
+      customerPhone: inv.customerPhone,
+      deliveryAddress: inv.deliveryAddress,
+      city: inv.city,
+      items: inv.items.map(i => ({
+        description: i.description,
+        qty: i.qty,
+        rate: i.rate,
+        amount: i.amount || i.qty * i.rate,
+      })),
+      subtotal: inv.subtotal,
+      deliveryCharges: Number(inv.deliveryCharges) || 0,
+      discount: Number(inv.discount) || 0,
+      total: inv.total,
+      paymentStatus: inv.paymentStatus,
+      paymentMethod: inv.paymentMethod,
+      notes: inv.notes,
+    });
   };
 
   // -------------------------------------------------------------
@@ -971,8 +1045,8 @@ export default function AdminInvoicesPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2">
-                            <Printer size={15} /> Print
+                          <Button onClick={() => activeEditingOrder && printAutoOrder(activeEditingOrder)} variant="outline" size="sm" className="gap-2">
+                            <Printer size={15} /> Print Invoice
                           </Button>
                           <Button
                             onClick={() => void handleSaveAutoInvoiceToDb()}
@@ -1126,13 +1200,16 @@ export default function AdminInvoicesPage() {
                       {/* Printable Invoice Container */}
                       <div id="invoice-printable" className="bg-white text-black p-6 sm:p-8 rounded-xl border border-gray-300 shadow-md space-y-6">
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between border-b border-gray-300 pb-5 gap-4">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-heading font-extrabold text-2xl tracking-tight text-black">LOCAL BABA</span>
-                              <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-xs font-bold uppercase tracking-wider">Wholesale</span>
+                          <div className="flex items-center gap-3">
+                            <img src="/Localbaba-logo.png" alt="Local Baba Logo" className="h-10 w-auto object-contain shrink-0" />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-heading font-extrabold text-xl tracking-tight text-black">LOCAL BABA</span>
+                                <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-bold uppercase tracking-wider">Wholesale</span>
+                              </div>
+                              <p className="text-[11px] text-gray-600">B2B Sourcing Platform for Pakistani Sellers</p>
+                              <p className="text-[10px] text-gray-500">Hall Road / Shah Alam Market, Lahore, Pakistan</p>
                             </div>
-                            <p className="text-xs text-gray-600 mt-1">B2B Sourcing Platform for Pakistani Sellers</p>
-                            <p className="text-xs text-gray-500">Hall Road / Shah Alam Market, Lahore, Pakistan</p>
                           </div>
 
                           <div className="sm:text-right">
@@ -1701,16 +1778,46 @@ export default function AdminInvoicesPage() {
                 <h2 className="font-heading font-bold text-lg flex items-center gap-2">
                   <Eye size={18} className="text-primary" /> Live Format Preview
                 </h2>
-                <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2">
-                  <Printer size={16} /> Print
+                <Button
+                  onClick={() =>
+                    handlePrintData({
+                      invoiceNumber: manualForm.invoiceNumber,
+                      date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
+                      customerName: manualForm.customerName || "Customer Name",
+                      customerPhone: manualForm.customerPhone || "N/A",
+                      deliveryAddress: manualForm.deliveryAddress || "Lahore Market",
+                      city: manualForm.city || "Lahore",
+                      items: manualForm.items.map(i => ({
+                        description: i.description || "Item",
+                        qty: Number(i.qty) || 1,
+                        rate: Number(i.rate) || 0,
+                        amount: (Number(i.qty) || 1) * (Number(i.rate) || 0),
+                      })),
+                      subtotal: manualSubtotal,
+                      deliveryCharges: Number(manualForm.deliveryCharges) || 0,
+                      discount: Number(manualForm.discount) || 0,
+                      total: manualGrandTotal,
+                      paymentStatus: manualForm.paymentStatus,
+                      paymentMethod: manualForm.paymentMethod,
+                      notes: manualForm.notes,
+                    })
+                  }
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Printer size={16} /> Print Invoice
                 </Button>
               </div>
 
               <div id="manual-invoice-printable" className="bg-white text-black p-6 rounded-xl border border-gray-300 shadow-md space-y-4 text-xs">
                 <div className="flex justify-between items-start border-b border-gray-300 pb-3">
-                  <div>
-                    <p className="font-heading font-bold text-xl text-black">LOCAL BABA</p>
-                    <p className="text-[10px] text-gray-500">Custom Manual Billing</p>
+                  <div className="flex items-center gap-3">
+                    <img src="/Localbaba-logo.png" alt="Local Baba Logo" className="h-9 w-auto object-contain shrink-0" />
+                    <div>
+                      <p className="font-heading font-bold text-lg text-black">LOCAL BABA</p>
+                      <p className="text-[10px] text-gray-500">Custom Manual Billing</p>
+                    </div>
                   </div>
                   <div className="text-right">
                     <p className="font-mono font-bold text-gray-900">{manualForm.invoiceNumber}</p>
@@ -1772,8 +1879,44 @@ export default function AdminInvoicesPage() {
           <div className="space-y-6">
             <div className="bg-card border border-border rounded-xl overflow-hidden shadow-xs">
               <div className="p-4 border-b border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <h2 className="font-heading font-bold text-lg">All Invoice Records</h2>
-                <div className="text-xs text-muted-foreground">Showing {orders.length + manualInvoices.length} invoices overall</div>
+                <div>
+                  <h2 className="font-heading font-bold text-lg">Overall Invoice Records</h2>
+                  <p className="text-xs text-muted-foreground">Separated by Auto DB and Manual Custom Invoices</p>
+                </div>
+
+                {/* Separation Filter Tabs: All, Auto DB, Manual */}
+                <div className="flex items-center bg-muted/60 p-1 rounded-lg border border-border">
+                  <button
+                    onClick={() => setOverallFilterTab("all")}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
+                      overallFilterTab === "all"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    All ({orders.length + manualInvoices.length})
+                  </button>
+                  <button
+                    onClick={() => setOverallFilterTab("auto")}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
+                      overallFilterTab === "auto"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Auto DB ({orders.length})
+                  </button>
+                  <button
+                    onClick={() => setOverallFilterTab("manual")}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
+                      overallFilterTab === "manual"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Manual Custom ({manualInvoices.length})
+                  </button>
+                </div>
               </div>
 
               <div className="overflow-x-auto">
@@ -1792,77 +1935,256 @@ export default function AdminInvoicesPage() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {/* Auto Orders Invoices */}
-                    {orders.map(ord => (
-                      <tr key={ord.id} className="hover:bg-muted/20">
-                        <td className="p-3 font-mono font-bold text-primary">#{ord.id}</td>
-                        <td className="p-3">
-                          <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 font-semibold text-[10px]">
-                            Auto DB Order
-                          </span>
-                        </td>
-                        <td className="p-3 font-medium text-foreground">{ord.customerName || `Member #${ord.memberId}`} ({ord.city})</td>
-                        <td className="p-3 text-muted-foreground">{new Date(ord.createdAt).toLocaleDateString()}</td>
-                        <td className="p-3 text-right font-mono">{ord.items.length} items ({ord.items.reduce((s, i) => s + i.qty, 0)} pcs)</td>
-                        <td className="p-3 text-right font-mono font-bold text-foreground">Rs {ord.total.toLocaleString()}</td>
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                            ord.paymentStatus === "confirmed" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"
-                          }`}>
-                            {ord.paymentStatus}
-                          </span>
-                        </td>
-                        <td className="p-3 text-right">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setSelectedOrderId(ord.id);
-                              setActiveMode("auto");
-                              setAutoSubTab("search_edit");
-                            }}
-                            className="h-7 text-xs text-primary hover:underline gap-1"
-                          >
-                            <Edit2 size={12} /> Edit / View
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                    {(overallFilterTab === "all" || overallFilterTab === "auto") &&
+                      orders.map(ord => (
+                        <tr key={ord.id} className="hover:bg-muted/20">
+                          <td className="p-3 font-mono font-bold text-primary">#{ord.id}</td>
+                          <td className="p-3">
+                            <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 font-semibold text-[10px]">
+                              Auto DB Order
+                            </span>
+                          </td>
+                          <td className="p-3 font-medium text-foreground">{ord.customerName || `Member #${ord.memberId}`} ({ord.city})</td>
+                          <td className="p-3 text-muted-foreground">{new Date(ord.createdAt).toLocaleDateString()}</td>
+                          <td className="p-3 text-right font-mono">{ord.items.length} items ({ord.items.reduce((s, i) => s + i.qty, 0)} pcs)</td>
+                          <td className="p-3 text-right font-mono font-bold text-foreground">Rs {ord.total.toLocaleString()}</td>
+                          <td className="p-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              ord.paymentStatus === "confirmed" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"
+                            }`}>
+                              {ord.paymentStatus}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => printAutoOrder(ord)}
+                              className="h-7 text-xs gap-1 border-border"
+                            >
+                              <Printer size={13} /> Print
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setSelectedOrderId(ord.id);
+                                setActiveMode("auto");
+                                setAutoSubTab("search_edit");
+                              }}
+                              className="h-7 text-xs text-primary hover:underline gap-1"
+                            >
+                              <Edit2 size={12} /> Edit
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
 
                     {/* Manual Invoices */}
-                    {manualInvoices.map(inv => (
-                      <tr key={inv.id} className="hover:bg-muted/20">
-                        <td className="p-3 font-mono font-bold text-purple-600">{inv.invoiceNumber}</td>
-                        <td className="p-3">
-                          <span className="px-2 py-0.5 rounded bg-purple-500/10 text-purple-600 font-semibold text-[10px]">
-                            Manual Custom
-                          </span>
-                        </td>
-                        <td className="p-3 font-medium text-foreground">{inv.customerName} ({inv.city})</td>
-                        <td className="p-3 text-muted-foreground">{new Date(inv.createdAt).toLocaleDateString()}</td>
-                        <td className="p-3 text-right font-mono">{inv.items.length} lines ({inv.items.reduce((s, i) => s + i.qty, 0)} pcs)</td>
-                        <td className="p-3 text-right font-mono font-bold text-foreground">Rs {inv.total.toLocaleString()}</td>
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                            inv.paymentStatus === "confirmed" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"
-                          }`}>
-                            {inv.paymentStatus}
-                          </span>
-                        </td>
-                        <td className="p-3 text-right flex items-center justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => deleteManualInvoice(inv.id)}
-                            className="h-7 text-xs text-danger hover:bg-danger/10"
-                          >
-                            <Trash2 size={13} />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                    {(overallFilterTab === "all" || overallFilterTab === "manual") &&
+                      manualInvoices.map(inv => (
+                        <tr key={inv.id} className="hover:bg-muted/20">
+                          <td className="p-3 font-mono font-bold text-purple-600">{inv.invoiceNumber}</td>
+                          <td className="p-3">
+                            <span className="px-2 py-0.5 rounded bg-purple-500/10 text-purple-600 font-semibold text-[10px]">
+                              Manual Custom
+                            </span>
+                          </td>
+                          <td className="p-3 font-medium text-foreground">{inv.customerName} ({inv.city})</td>
+                          <td className="p-3 text-muted-foreground">{new Date(inv.createdAt).toLocaleDateString()}</td>
+                          <td className="p-3 text-right font-mono">{inv.items.length} lines ({inv.items.reduce((s, i) => s + i.qty, 0)} pcs)</td>
+                          <td className="p-3 text-right font-mono font-bold text-foreground">Rs {inv.total.toLocaleString()}</td>
+                          <td className="p-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              inv.paymentStatus === "confirmed" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"
+                            }`}>
+                              {inv.paymentStatus}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => printManualInvoice(inv)}
+                              className="h-7 text-xs gap-1 border-border"
+                            >
+                              <Printer size={13} /> Print
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setManualForm({
+                                  invoiceNumber: inv.invoiceNumber,
+                                  customerName: inv.customerName,
+                                  customerPhone: inv.customerPhone || "",
+                                  deliveryAddress: inv.deliveryAddress || "",
+                                  city: inv.city || "",
+                                  memberId: "m1",
+                                  paymentMethod: inv.paymentMethod || "bank_transfer",
+                                  paymentStatus: inv.paymentStatus || "confirmed",
+                                  dueDate: inv.dueDate || "",
+                                  deliveryCharges: inv.deliveryCharges || "",
+                                  discount: inv.discount || "",
+                                  notes: inv.notes || "",
+                                  items: inv.items.map(i => ({
+                                    description: i.description,
+                                    qty: i.qty,
+                                    rate: i.rate,
+                                    amount: i.amount || (i.qty * i.rate),
+                                  })),
+                                });
+                                setActiveMode("manual");
+                                toast.info(`Loaded Manual Invoice ${inv.invoiceNumber} in editor.`);
+                              }}
+                              className="h-7 text-xs text-primary hover:underline gap-1"
+                            >
+                              <Edit2 size={12} /> Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => deleteManualInvoice(inv.id)}
+                              className="h-7 text-xs text-danger hover:bg-danger/10"
+                            >
+                              <Trash2 size={13} />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* DEDICATED PRINTABLE INVOICE DOCUMENT CONTAINER (CSS PRINT)  */}
+        {/* ========================================================= */}
+        <style>{`
+          @media print {
+            body * {
+              visibility: hidden !important;
+            }
+            #invoice-print-document, #invoice-print-document * {
+              visibility: visible !important;
+            }
+            #invoice-print-document {
+              position: fixed !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100% !important;
+              height: 100% !important;
+              background: white !important;
+              color: black !important;
+              z-index: 999999 !important;
+              padding: 30px !important;
+              box-sizing: border-box !important;
+              font-family: Arial, sans-serif !important;
+            }
+          }
+        `}</style>
+
+        {printableData && (
+          <div id="invoice-print-document" className="hidden print:block bg-white text-black p-8 rounded-none space-y-6 text-xs leading-relaxed">
+            {/* Header */}
+            <div className="flex justify-between items-start border-b border-gray-900 pb-5">
+              <div className="flex items-start gap-4">
+                <img src="/Localbaba-logo.png" alt="Local Baba Logo" className="h-14 w-auto object-contain shrink-0" />
+                <div>
+                  <h1 className="font-bold text-2xl text-black tracking-tight font-heading">LOCAL BABA</h1>
+                  <p className="text-xs font-semibold text-gray-700">Wholesale B2B Sourcing Platform for Pakistani Retailers</p>
+                  <p className="text-[11px] text-gray-500">Hall Road / Shah Alam Market, Lahore, Pakistan</p>
+                  <p className="text-[11px] text-gray-500 font-mono">Support: support@localbaba.pk | +92 300 0000000</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="inline-block px-3 py-1 bg-black text-white text-xs font-mono font-bold tracking-widest rounded mb-2">OFFICIAL INVOICE</span>
+                <p className="text-base font-mono font-extrabold text-gray-900">{printableData.invoiceNumber}</p>
+                <p className="text-xs text-gray-600">Date: {printableData.date}</p>
+                <p className="text-xs font-semibold text-gray-700">
+                  Payment Status: <span className="uppercase text-emerald-700 font-bold">{printableData.paymentStatus}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Billed To */}
+            <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded border border-gray-200">
+              <div>
+                <p className="font-bold text-gray-500 uppercase tracking-wider text-[10px] mb-1">Billed To (Member / Customer):</p>
+                <p className="font-bold text-sm text-gray-900">{printableData.customerName}</p>
+                <p className="text-gray-700">{printableData.deliveryAddress}</p>
+                <p className="text-gray-700 font-semibold">{printableData.city}, Pakistan</p>
+              </div>
+              <div>
+                <p className="font-bold text-gray-500 uppercase tracking-wider text-[10px] mb-1">Contact & Payment Details:</p>
+                <p className="text-gray-700 font-mono">Phone: {printableData.customerPhone || "N/A"}</p>
+                <p className="text-gray-700 uppercase font-semibold">Payment Method: {printableData.paymentMethod.replace("_", " ")}</p>
+              </div>
+            </div>
+
+            {/* Line Items Table */}
+            <table className="w-full text-left border-collapse border-y border-gray-300">
+              <thead>
+                <tr className="bg-gray-100 text-gray-800 font-bold text-xs uppercase tracking-wider">
+                  <th className="py-2.5 px-3 border-b border-gray-300">#</th>
+                  <th className="py-2.5 px-3 border-b border-gray-300">Item Description</th>
+                  <th className="py-2.5 px-3 border-b border-gray-300 text-right">Qty</th>
+                  <th className="py-2.5 px-3 border-b border-gray-300 text-right">Unit Rate</th>
+                  <th className="py-2.5 px-3 border-b border-gray-300 text-right">Item Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 font-mono">
+                {printableData.items.map((it, idx) => (
+                  <tr key={idx}>
+                    <td className="py-2 px-3 text-gray-500 font-bold">{idx + 1}</td>
+                    <td className="py-2 px-3 font-sans font-medium text-gray-900">{it.description}</td>
+                    <td className="py-2 px-3 text-right">{it.qty}</td>
+                    <td className="py-2 px-3 text-right">Rs {it.rate.toLocaleString()}</td>
+                    <td className="py-2 px-3 text-right font-bold">Rs {(it.amount || (it.qty * it.rate)).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Calculations Total Box */}
+            <div className="flex justify-between items-start pt-2">
+              <div className="max-w-[50%] space-y-1">
+                {printableData.notes && (
+                  <div className="text-[11px] text-gray-600 bg-gray-50 p-3 rounded border border-gray-200">
+                    <p className="font-bold text-gray-800 mb-0.5">Notes & Terms:</p>
+                    <p>{printableData.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="w-64 space-y-1 text-right font-mono text-xs">
+                <div className="flex justify-between text-gray-600">
+                  <span>Subtotal:</span>
+                  <span className="font-semibold text-gray-900">Rs {printableData.subtotal.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>Delivery Charges:</span>
+                  <span className="font-semibold text-gray-900">Rs {printableData.deliveryCharges.toLocaleString()}</span>
+                </div>
+                {printableData.discount > 0 && (
+                  <div className="flex justify-between text-emerald-700 font-semibold">
+                    <span>Discount:</span>
+                    <span>- Rs {printableData.discount.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-base font-bold text-black border-t-2 border-gray-900 pt-2 mt-2">
+                  <span>Grand Total:</span>
+                  <span className="text-black">Rs {printableData.total.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-gray-300 pt-6 text-center text-[10px] text-gray-500 space-y-1">
+              <p className="font-bold text-gray-700">Thank you for sourcing with Local Baba Wholesale!</p>
+              <p>Computer-generated invoice document. Valid without physical signature.</p>
             </div>
           </div>
         )}

@@ -8,16 +8,16 @@ import { orders as mockOrders } from "@/data/mockData";
 import { useOrders } from "@/contexts/OrdersContext";
 
 const statusColors: Record<string, string> = {
-  processing: "bg-amber-100 text-amber-800",
-  dispatched: "bg-blue-100 text-blue-800",
-  delivered: "bg-olive/20 text-olive",
-  cancelled: "bg-danger/10 text-danger",
+  processing: "bg-amber-100 text-amber-900 border border-amber-300 font-bold",
+  dispatched: "bg-blue-100 text-blue-800 font-semibold",
+  delivered: "bg-olive/20 text-olive font-semibold",
+  cancelled: "bg-danger/10 text-danger font-semibold",
 };
 
 const paymentStatusColors: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-800",
-  confirmed: "bg-olive/20 text-olive",
-  failed: "bg-danger/10 text-danger",
+  pending: "bg-amber-100 text-amber-900 font-bold border border-amber-300",
+  confirmed: "bg-emerald-100 text-emerald-900 font-bold border border-emerald-300",
+  failed: "bg-danger/10 text-danger font-semibold",
 };
 
 export default function OrderDetailPage() {
@@ -101,7 +101,25 @@ export default function OrderDetailPage() {
               ))}
             </tbody>
             <tfoot>
-              <tr>
+              <tr className="border-t border-gray-200">
+                <td colSpan={3} className="py-2 text-right text-gray-600">Subtotal</td>
+                <td className="py-2 text-right font-medium">
+                  Rs {order.items.reduce((s, i) => s + i.pricePerPc * i.qty, 0).toLocaleString()}
+                </td>
+              </tr>
+              {order.deliveryCharges !== undefined && (
+                <tr className="border-t border-gray-100">
+                  <td colSpan={3} className="py-2 text-right text-gray-600">Delivery Charges</td>
+                  <td className="py-2 text-right font-medium">Rs {order.deliveryCharges.toLocaleString()}</td>
+                </tr>
+              )}
+              {!!order.discount && (
+                <tr className="border-t border-gray-100 text-emerald-700">
+                  <td colSpan={3} className="py-2 text-right">Discount</td>
+                  <td className="py-2 text-right font-medium">- Rs {order.discount.toLocaleString()}</td>
+                </tr>
+              )}
+              <tr className="border-t-2 border-black">
                 <td colSpan={3} className="py-3 text-right font-bold text-base">Total</td>
                 <td className="py-3 text-right font-bold text-base">Rs {order.total.toLocaleString()}</td>
               </tr>
@@ -121,13 +139,52 @@ export default function OrderDetailPage() {
         </p>
 
         {/* Header */}
-        <div className="bg-card rounded-card border border-border p-6 flex flex-wrap items-center gap-4">
-          <div className="flex-1">
-            <h1 className="font-heading font-bold text-2xl">Order #{order.id}</h1>
-            <p className="text-sm text-muted-foreground mt-1">{new Date(order.createdAt).toLocaleString()}</p>
+        <div className="bg-card rounded-card border border-border p-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="font-heading font-bold text-2xl">Order #{order.id}</h1>
+              <p className="text-sm text-muted-foreground mt-1">{new Date(order.createdAt).toLocaleString()}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`px-3 py-1 rounded-pill text-xs capitalize ${statusColors[order.orderStatus] || "bg-muted text-muted-foreground"}`}>
+                Status: {order.orderStatus === "processing" && order.paymentStatus === "confirmed" ? "Packing" : order.orderStatus}
+              </span>
+              <span className={`px-3 py-1 rounded-pill text-xs capitalize ${paymentStatusColors[order.paymentStatus] || "bg-muted text-muted-foreground"}`}>
+                Payment: {order.paymentStatus === "pending" ? "Confirmation Pending" : order.paymentStatus === "confirmed" ? "Verified" : order.paymentStatus}
+              </span>
+            </div>
           </div>
-          <span className={`px-3 py-1 rounded-pill text-xs font-medium ${statusColors[order.orderStatus]}`}>{order.orderStatus}</span>
-          <span className={`px-3 py-1 rounded-pill text-xs font-medium ${paymentStatusColors[order.paymentStatus]}`}>Payment: {order.paymentStatus}</span>
+
+          {/* Payment Proof Status Banner */}
+          {order.paymentStatus === "pending" ? (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-900 dark:text-amber-300 flex items-center justify-between gap-3">
+              <div>
+                <p className="font-bold">⏳ Payment Confirmation Pending</p>
+                <p className="text-[11px] text-amber-800 dark:text-amber-400 mt-0.5">
+                  Our team is verifying your uploaded payment proof screenshot. Once verified by admin, your order will automatically proceed to packing!
+                </p>
+              </div>
+              {order.paymentScreenshot && (
+                <a href={order.paymentScreenshot} target="_blank" rel="noopener noreferrer" className="shrink-0 group">
+                  <img src={order.paymentScreenshot} alt="Payment Receipt" className="w-12 h-12 object-cover rounded-lg border border-amber-300 group-hover:scale-105 transition-transform" />
+                </a>
+              )}
+            </div>
+          ) : order.paymentStatus === "confirmed" ? (
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-900 dark:text-emerald-300 flex items-center justify-between gap-3">
+              <div>
+                <p className="font-bold">✅ Payment Verified by Admin</p>
+                <p className="text-[11px] text-emerald-800 dark:text-emerald-400 mt-0.5">
+                  Your payment receipt has been verified! Your order is now in packing and being prepared for dispatch.
+                </p>
+              </div>
+              {order.paymentScreenshot && (
+                <a href={order.paymentScreenshot} target="_blank" rel="noopener noreferrer" className="shrink-0 group">
+                  <img src={order.paymentScreenshot} alt="Payment Receipt" className="w-12 h-12 object-cover rounded-lg border border-emerald-300 group-hover:scale-105 transition-transform" />
+                </a>
+              )}
+            </div>
+          ) : null}
         </div>
 
         {/* Tracking */}
@@ -204,9 +261,29 @@ export default function OrderDetailPage() {
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t border-border">
-                  <td colSpan={3} className="p-3 text-right font-heading font-bold">Total</td>
-                  <td className="p-3 text-right font-heading font-bold text-lg">Rs {order.total.toLocaleString()}</td>
+                <tr className="border-t border-border bg-muted/20 text-xs">
+                  <td colSpan={3} className="p-2.5 text-right font-medium text-muted-foreground">Items Subtotal</td>
+                  <td className="p-2.5 text-right font-mono font-medium">
+                    Rs {order.items.reduce((s, i) => s + i.pricePerPc * i.qty, 0).toLocaleString()}
+                  </td>
+                </tr>
+                {order.deliveryCharges !== undefined && (
+                  <tr className="border-t border-border bg-muted/20 text-xs">
+                    <td colSpan={3} className="p-2.5 text-right font-medium text-muted-foreground">Delivery Charges</td>
+                    <td className="p-2.5 text-right font-mono font-medium">Rs {order.deliveryCharges.toLocaleString()}</td>
+                  </tr>
+                )}
+                {!!order.discount && (
+                  <tr className="border-t border-border bg-muted/20 text-xs text-emerald-600">
+                    <td colSpan={3} className="p-2.5 text-right font-medium">Discount / Adjustments</td>
+                    <td className="p-2.5 text-right font-mono font-medium">- Rs {order.discount.toLocaleString()}</td>
+                  </tr>
+                )}
+                <tr className="border-t-2 border-border bg-muted/40">
+                  <td colSpan={3} className="p-3 text-right font-heading font-bold">Grand Total</td>
+                  <td className="p-3 text-right font-heading font-bold text-lg text-primary">
+                    Rs {order.total.toLocaleString()}
+                  </td>
                 </tr>
               </tfoot>
             </table>

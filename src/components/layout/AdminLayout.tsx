@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Users, Package, ShoppingCart, UserCheck, MessageSquare, LogOut, Table2, LayoutTemplate } from "lucide-react";
+import { LayoutDashboard, Users, Package, ShoppingCart, UserCheck, MessageSquare, LogOut, Table2, LayoutTemplate, Receipt } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
@@ -12,6 +12,7 @@ const adminLinks = [
   { label: "Landing page", href: "/admin/landing-products", icon: LayoutTemplate },
   { label: "China delivery", href: "/admin/china-delivery", icon: Package },
   { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { label: "Invoices", href: "/admin/invoices", icon: Receipt },
   { label: "Members", href: "/admin/members", icon: Users },
   { label: "Announcements", href: "/admin/blasts", icon: MessageSquare },
 ];

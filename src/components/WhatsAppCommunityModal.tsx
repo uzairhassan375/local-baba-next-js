@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 const WHATSAPP_URL   = "https://chat.whatsapp.com/FT2GIUaopaMJ8ZMeZI0lLE?s=sh&p=i&ilr=0&amv=2";
@@ -8,13 +9,46 @@ const TIKTOK_URL     = "https://www.tiktok.com/@thelocalbaba?_r=1&_t=ZS-986nctIc
 const INSTAGRAM_URL  = "https://www.instagram.com/localbaba0?igsh=MXVoMTQ1am01OW9zeQ%3D%3D&utm_source=qr";
 const FACEBOOK_URL   = "https://www.facebook.com/share/1D3mYsssTj/?mibextid=wwXIfr";
 
+const STORAGE_KEY = "localbaba_whatsapp_community_modal_timestamp";
+const COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes cooldown
+
 export default function WhatsAppCommunityModal() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setOpen(true), 200);
-    return () => window.clearTimeout(timer);
-  }, []);
+    // Never show on admin pages
+    if (pathname && pathname.startsWith("/admin")) {
+      return;
+    }
+
+    try {
+      const lastShownStr = localStorage.getItem(STORAGE_KEY);
+      const now = Date.now();
+
+      if (lastShownStr) {
+        const lastShown = Number(lastShownStr);
+        if (now - lastShown < COOLDOWN_MS) {
+          // Cooldown active (< 15 minutes) - do not show modal
+          return;
+        }
+      }
+
+      // 15+ mins elapsed or first time -> open modal and set timestamp
+      const timer = window.setTimeout(() => {
+        setOpen(true);
+        localStorage.setItem(STORAGE_KEY, now.toString());
+      }, 500);
+
+      return () => window.clearTimeout(timer);
+    } catch (e) {
+      console.error("Failed to check modal cooldown", e);
+    }
+  }, [pathname]);
+
+  if (pathname && pathname.startsWith("/admin")) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

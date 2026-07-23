@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { adminLogin, isAdmin, authReady } = useAuth();
   const router = useRouter();
@@ -45,15 +47,25 @@ export default function AdminLoginPage() {
             autoComplete="off"
             className="w-full h-11 px-3 rounded-lg border border-border bg-card focus:border-primary focus:outline-none"
           />
-          <input
-            name="admin-password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="Password"
-            type="password"
-            autoComplete="off"
-            className="w-full h-11 px-3 rounded-lg border border-border bg-card focus:border-primary focus:outline-none"
-          />
+          <div className="relative">
+            <input
+              name="admin-password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="off"
+              className="w-full h-11 pl-3 pr-10 rounded-lg border border-border bg-card focus:border-primary focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(prev => !prev)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
           <button
             type="submit"
             disabled={submitting}

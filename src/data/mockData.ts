@@ -31,11 +31,17 @@ export interface Order {
   memberId: string;
   items: { productId: string; name: string; qty: number; pricePerPc: number; image: string }[];
   total: number;
-  paymentMethod: "bank_transfer" | "easypaisa" | "cod";
+  paymentMethod: "bank_transfer" | "easypaisa" | "cod" | "card";
   paymentStatus: "pending" | "confirmed" | "failed";
   orderStatus: "processing" | "dispatched" | "delivered" | "cancelled";
   courier?: string;
   trackingNumber?: string;
+  deliveryCharges?: number;
+  discount?: number;
+  customerName?: string;
+  notes?: string;
+  paymentScreenshot?: string;
+  transactionRef?: string;
   createdAt: string;
   deliveryAddress: string;
   city: string;

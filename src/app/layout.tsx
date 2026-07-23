@@ -28,7 +28,16 @@ export const metadata: Metadata = {
   description:
     "Pakistan's first direct-importer B2B wholesale platform. MOQ of just 30 pcs. 48-hour dispatch. Join 500+ verified sellers.",
   icons: {
-    icon: "/browseTab image.jpeg",
+    icon: [
+      { url: "/icon-48x48.png", sizes: "48x48", type: "image/png" },
+      { url: "/icon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/icon-144x144.png", sizes: "144x144", type: "image/png" },
+      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512x512.png", sizes: "512x512", type: "image/png" },
+      { url: "/favicon.ico" },
+    ],
+    shortcut: "/icon-96x96.png",
+    apple: "/apple-touch-icon.png",
   },
   openGraph: {
     title: "The Local Baba — Wholesale, the way it should be.",
@@ -52,6 +61,14 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${fontHeading.variable} ${fontBody.variable} ${fontMono.variable} h-full`}
     >
+      <head>
+        <link rel="icon" href="/icon-48x48.png" sizes="48x48" type="image/png" />
+        <link rel="icon" href="/icon-96x96.png" sizes="96x96" type="image/png" />
+        <link rel="icon" href="/icon-192x192.png" sizes="192x192" type="image/png" />
+        <link rel="icon" href="/icon-512x512.png" sizes="512x512" type="image/png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+        <link rel="shortcut icon" href="/favicon.ico" />
+      </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <Providers>
           {children}

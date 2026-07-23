@@ -318,7 +318,7 @@ export default function AdminInvoicesPage() {
   };
 
   // -------------------------------------------------------------
-  // MANUAL MODE - COMPLETELY EMPTY ON START
+  // MANUAL MODE - COMPLETELY EMPTY ON START WITH AUTOCOMPLETE & DB SYNC
   // -------------------------------------------------------------
   const [manualForm, setManualForm] = useState({
     invoiceNumber: `INV-LB-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -326,14 +326,42 @@ export default function AdminInvoicesPage() {
     customerPhone: "",
     deliveryAddress: "",
     city: "",
+    memberId: "m1",
     paymentMethod: "bank_transfer",
     paymentStatus: "confirmed" as "pending" | "confirmed" | "failed",
     dueDate: "",
     deliveryCharges: "" as number | "",
     discount: "" as number | "",
     notes: "",
-    items: [] as { description: string; qty: number; rate: number; amount: number }[],
+    items: [] as { productId?: string; description: string; qty: number; rate: number; amount: number; image?: string }[],
   });
+
+  const [showManualUserDropdown, setShowManualUserDropdown] = useState(false);
+  const [activeManualProductDropdown, setActiveManualProductDropdown] = useState<number | null>(null);
+
+  // Matching users for Manual Invoice Customer Name autocomplete
+  const matchingManualUsers = useMemo(() => {
+    if (!manualForm.customerName.trim()) return [];
+    const term = manualForm.customerName.toLowerCase().trim();
+    return allDbUsers.filter(
+      u =>
+        u.name.toLowerCase().includes(term) ||
+        u.phone.toLowerCase().includes(term) ||
+        u.city.toLowerCase().includes(term)
+    ).slice(0, 5);
+  }, [allDbUsers, manualForm.customerName]);
+
+  // Helper to match products for Manual Invoice item description autocomplete
+  const getMatchingManualProducts = (text: string) => {
+    if (!text.trim()) return [];
+    const term = text.toLowerCase().trim();
+    return dbProducts.filter(
+      p =>
+        p.name.toLowerCase().includes(term) ||
+        (p.sku && p.sku.toLowerCase().includes(term)) ||
+        p.category.toLowerCase().includes(term)
+    ).slice(0, 5);
+  };
 
   const manualSubtotal = useMemo(() => {
     return manualForm.items.reduce((sum, item) => sum + ((Number(item.qty) || 0) * (Number(item.rate) || 0)), 0);
@@ -371,7 +399,7 @@ export default function AdminInvoicesPage() {
     }));
   };
 
-  const handleSaveManualInvoice = (e: React.FormEvent) => {
+  const handleSaveManualInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualForm.customerName.trim()) {
       toast.error("Please enter Customer / Seller Name.");
@@ -382,41 +410,69 @@ export default function AdminInvoicesPage() {
       return;
     }
 
-    const created = addManualInvoice({
-      invoiceNumber: manualForm.invoiceNumber,
-      customerName: manualForm.customerName,
-      customerPhone: manualForm.customerPhone,
-      deliveryAddress: manualForm.deliveryAddress || "Lahore Market",
-      city: manualForm.city || "Lahore",
-      items: manualForm.items,
-      subtotal: manualSubtotal,
-      deliveryCharges: Number(manualForm.deliveryCharges) || 0,
-      discount: Number(manualForm.discount) || 0,
-      total: manualGrandTotal,
-      paymentMethod: manualForm.paymentMethod,
-      paymentStatus: manualForm.paymentStatus,
-      dueDate: manualForm.dueDate,
-      notes: manualForm.notes,
-    });
+    try {
+      // 1. Save directly to Supabase member_orders database table
+      const createdOrder = await addOrder({
+        customerName: manualForm.customerName,
+        memberId: manualForm.memberId || "m1",
+        items: manualForm.items.map((it, idx) => ({
+          productId: it.productId || `manual-${idx}-${Date.now()}`,
+          name: it.description || "Custom Item",
+          qty: Number(it.qty) || 1,
+          pricePerPc: Number(it.rate) || 0,
+          image: it.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop",
+        })),
+        total: manualGrandTotal,
+        deliveryCharges: Number(manualForm.deliveryCharges) || 0,
+        discount: Number(manualForm.discount) || 0,
+        paymentMethod: manualForm.paymentMethod,
+        paymentStatus: manualForm.paymentStatus,
+        deliveryAddress: manualForm.deliveryAddress || "Lahore Market",
+        city: manualForm.city || "Lahore",
+        notes: manualForm.notes,
+      });
 
-    toast.success(`Manual Invoice ${created.invoiceNumber} generated successfully!`);
-    
-    // Reset manual form to empty for next creation
-    setManualForm({
-      invoiceNumber: `INV-LB-${Math.floor(1000 + Math.random() * 9000)}`,
-      customerName: "",
-      customerPhone: "",
-      deliveryAddress: "",
-      city: "",
-      paymentMethod: "bank_transfer",
-      paymentStatus: "confirmed",
-      dueDate: "",
-      deliveryCharges: "",
-      discount: "",
-      notes: "",
-      items: [],
-    });
-    setActiveMode("overall");
+      // 2. Also add to manual invoices records list
+      addManualInvoice({
+        invoiceNumber: manualForm.invoiceNumber,
+        customerName: manualForm.customerName,
+        customerPhone: manualForm.customerPhone,
+        deliveryAddress: manualForm.deliveryAddress || "Lahore Market",
+        city: manualForm.city || "Lahore",
+        items: manualForm.items,
+        subtotal: manualSubtotal,
+        deliveryCharges: Number(manualForm.deliveryCharges) || 0,
+        discount: Number(manualForm.discount) || 0,
+        total: manualGrandTotal,
+        paymentMethod: manualForm.paymentMethod,
+        paymentStatus: manualForm.paymentStatus,
+        dueDate: manualForm.dueDate,
+        notes: manualForm.notes,
+      });
+
+      toast.success(`Manual Invoice #${createdOrder.id} saved to Database and synced to Member Order Page!`);
+      
+      // Reset manual form to empty for next creation
+      setManualForm({
+        invoiceNumber: `INV-LB-${Math.floor(1000 + Math.random() * 9000)}`,
+        customerName: "",
+        customerPhone: "",
+        deliveryAddress: "",
+        city: "",
+        memberId: "m1",
+        paymentMethod: "bank_transfer",
+        paymentStatus: "confirmed",
+        dueDate: "",
+        deliveryCharges: "",
+        discount: "",
+        notes: "",
+        items: [],
+      });
+      setActiveMode("overall");
+    } catch (err) {
+      toast.error("Failed to save manual invoice to database.");
+      console.error(err);
+    }
   };
 
   const handlePrint = () => {
@@ -1366,18 +1422,55 @@ export default function AdminInvoicesPage() {
               </div>
 
               <form onSubmit={handleSaveManualInvoice} className="space-y-4 text-xs">
-                {/* Customer Details */}
+                {/* Customer Details with Autocomplete Dropdown */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
+                  <div className="relative">
                     <label className="font-medium block mb-1 text-foreground">Customer / Seller Name *</label>
                     <Input
                       value={manualForm.customerName}
-                      onChange={e => setManualForm({ ...manualForm, customerName: e.target.value })}
-                      placeholder="e.g. Usman Retailers"
+                      onChange={e => {
+                        setManualForm({ ...manualForm, customerName: e.target.value });
+                        setShowManualUserDropdown(true);
+                      }}
+                      onFocus={() => setShowManualUserDropdown(true)}
+                      placeholder="Type name or phone to auto-fill..."
                       required
                       className="h-9 bg-background"
                     />
+
+                    {/* Customer Autocomplete Dropdown */}
+                    {showManualUserDropdown && matchingManualUsers.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-popover border border-border rounded-xl shadow-xl p-1.5 space-y-1 max-h-48 overflow-y-auto">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 py-0.5">Click user to auto-fill details:</p>
+                        {matchingManualUsers.map(u => (
+                          <button
+                            key={u.id}
+                            type="button"
+                            onClick={() => {
+                              setManualForm({
+                                ...manualForm,
+                                customerName: u.name,
+                                customerPhone: u.phone,
+                                deliveryAddress: u.address,
+                                city: u.city,
+                                memberId: u.id,
+                              });
+                              setShowManualUserDropdown(false);
+                              toast.success(`Auto-filled details for ${u.name}!`);
+                            }}
+                            className="w-full text-left p-2 hover:bg-muted rounded-lg text-xs flex items-center justify-between"
+                          >
+                            <div>
+                              <p className="font-bold text-foreground">{u.name}</p>
+                              <p className="text-[10px] text-muted-foreground">{u.address}, {u.city}</p>
+                            </div>
+                            <span className="text-[10px] font-mono text-primary font-semibold">{u.phone}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
+
                   <div>
                     <label className="font-medium block mb-1 text-foreground">WhatsApp / Phone</label>
                     <Input
@@ -1429,7 +1522,7 @@ export default function AdminInvoicesPage() {
                     <select
                       value={manualForm.paymentStatus}
                       onChange={e => setManualForm({ ...manualForm, paymentStatus: e.target.value as any })}
-                      className="w-full h-9 px-3 rounded-lg border border-border bg-background text-xs"
+                      className="w-full h-9 px-3 rounded-lg border border-border bg-background text-xs font-bold"
                     >
                       <option value="confirmed">Confirmed / Paid</option>
                       <option value="pending">Pending</option>
@@ -1448,7 +1541,7 @@ export default function AdminInvoicesPage() {
                   </div>
                 </div>
 
-                {/* Line Items Editor */}
+                {/* Line Items Editor with Product Autocomplete */}
                 <div className="space-y-2 pt-2 border-t border-border">
                   <div className="flex items-center justify-between">
                     <span className="font-bold uppercase tracking-wider text-muted-foreground">Line Items ({manualForm.items.length})</span>
@@ -1459,42 +1552,95 @@ export default function AdminInvoicesPage() {
 
                   {manualForm.items.length > 0 ? (
                     <div className="space-y-2">
-                      {manualForm.items.map((item, idx) => (
-                        <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2 bg-muted/30 rounded-lg border border-border">
-                          <Input
-                            placeholder="Item description / Product name"
-                            value={item.description}
-                            onChange={e => handleUpdateManualItem(idx, "description", e.target.value)}
-                            className="h-8 flex-1 bg-background"
-                          />
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              placeholder="Qty"
-                              value={item.qty || ""}
-                              onChange={e => handleUpdateManualItem(idx, "qty", e.target.value)}
-                              className="h-8 w-16 text-right font-mono bg-background"
-                            />
-                            <Input
-                              type="number"
-                              placeholder="Rate (Rs)"
-                              value={item.rate || ""}
-                              onChange={e => handleUpdateManualItem(idx, "rate", e.target.value)}
-                              className="h-8 w-24 text-right font-mono bg-background"
-                            />
-                            <span className="w-20 text-right font-mono font-bold text-foreground">
-                              Rs {((Number(item.qty) || 0) * (Number(item.rate) || 0)).toLocaleString()}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveManualItem(idx)}
-                              className="p-1.5 text-muted-foreground hover:text-danger rounded"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                      {manualForm.items.map((item, idx) => {
+                        const matchingProds = getMatchingManualProducts(item.description);
+                        const isFocused = activeManualProductDropdown === idx;
+
+                        return (
+                          <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2 bg-muted/30 rounded-lg border border-border relative">
+                            <div className="flex-1 relative">
+                              <Input
+                                placeholder="Type item name or SKU to auto-fill..."
+                                value={item.description}
+                                onChange={e => {
+                                  handleUpdateManualItem(idx, "description", e.target.value);
+                                  setActiveManualProductDropdown(idx);
+                                }}
+                                onFocus={() => setActiveManualProductDropdown(idx)}
+                                className="h-8 w-full bg-background"
+                              />
+
+                              {/* Product Autocomplete Dropdown */}
+                              {isFocused && matchingProds.length > 0 && (
+                                <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-popover border border-border rounded-xl shadow-xl p-1.5 space-y-1 max-h-48 overflow-y-auto">
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 py-0.5">Click product to auto-fill details:</p>
+                                  {matchingProds.map(p => (
+                                    <button
+                                      key={p.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setManualForm(prev => {
+                                          const updated = [...prev.items];
+                                          const qtyVal = p.moq || 1;
+                                          const rateVal = p.pricePerPc;
+                                          updated[idx] = {
+                                            ...updated[idx],
+                                            description: p.name,
+                                            rate: rateVal,
+                                            qty: qtyVal,
+                                            amount: qtyVal * rateVal,
+                                            productId: p.id,
+                                            image: p.images?.[0],
+                                          };
+                                          return { ...prev, items: updated };
+                                        });
+                                        setActiveManualProductDropdown(null);
+                                        toast.success(`Auto-filled "${p.name}" (Rs ${p.pricePerPc}/pc)!`);
+                                      }}
+                                      className="w-full text-left p-2 hover:bg-muted rounded-lg text-xs flex items-center justify-between"
+                                    >
+                                      <div className="flex items-center gap-2 truncate">
+                                        {p.images?.[0] && (
+                                          <img src={p.images[0]} alt={p.name} className="w-7 h-7 object-cover rounded" />
+                                        )}
+                                        <span className="font-bold text-foreground truncate">{p.name}</span>
+                                      </div>
+                                      <span className="text-[10px] font-mono text-primary font-bold shrink-0 ml-2">Rs {p.pricePerPc}/pc</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                placeholder="Qty"
+                                value={item.qty || ""}
+                                onChange={e => handleUpdateManualItem(idx, "qty", e.target.value)}
+                                className="h-8 w-16 text-right font-mono bg-background"
+                              />
+                              <Input
+                                type="number"
+                                placeholder="Rate (Rs)"
+                                value={item.rate || ""}
+                                onChange={e => handleUpdateManualItem(idx, "rate", e.target.value)}
+                                className="h-8 w-24 text-right font-mono bg-background"
+                              />
+                              <span className="w-20 text-right font-mono font-bold text-foreground">
+                                Rs {((Number(item.qty) || 0) * (Number(item.rate) || 0)).toLocaleString()}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveManualItem(idx)}
+                                className="p-1.5 text-muted-foreground hover:text-danger rounded"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="p-6 text-center border-2 border-dashed border-border rounded-lg space-y-2 bg-muted/20">

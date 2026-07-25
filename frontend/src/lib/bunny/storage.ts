@@ -42,3 +42,17 @@ export async function uploadBufferToBunny(opts: {
 
   return `${cdnBase}/${encodePathForUrl(opts.objectPath)}`;
 }
+
+/** Delete an object from Bunny Storage by its public CDN URL. No-op if the URL isn't ours. */
+export async function deleteFromBunnyByUrl(cdnUrl: string): Promise<void> {
+  const { apiKey, apiBase, cdnBase } = getBunnyConfig();
+  if (!cdnUrl.startsWith(`${cdnBase}/`)) return; // never touch URLs we don't own
+
+  const objectPath = cdnUrl.slice(`${cdnBase}/`.length); // already percent-encoded
+  const delUrl = `${apiBase}/${objectPath}`;
+  const res = await fetch(delUrl, { method: "DELETE", headers: { AccessKey: apiKey } });
+  if (!res.ok && res.status !== 404) {
+    const detail = await res.text().catch(() => "");
+    console.error("Bunny storage delete failed", res.status, detail);
+  }
+}

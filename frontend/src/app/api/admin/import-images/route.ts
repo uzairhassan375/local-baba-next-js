@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { uploadBufferToBunny } from "@/lib/bunny/storage";
+import { uploadBufferToBunny, deleteFromBunnyByUrl } from "@/lib/bunny/storage";
 import { extensionForMime } from "@/lib/ai/listingTypes";
 
 export const maxDuration = 120;
@@ -88,6 +88,9 @@ export async function POST(request: NextRequest) {
         objectPath: `${folder}/sel-${index + 1}-${Date.now()}.${ext}`,
       });
       out.push(cdnUrl);
+      // Clean up the old copy now that it lives in the product's own folder
+      // (no-ops for third-party URLs we don't own).
+      await deleteFromBunnyByUrl(url).catch(() => {});
     } catch (e) {
       console.error("import image failed", url, e);
       errors.push(e instanceof Error ? e.message : "import failed");

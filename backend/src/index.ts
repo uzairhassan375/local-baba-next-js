@@ -13,14 +13,18 @@ const PORT = process.env.PORT || 5000;
 // Enable CORS for frontend Next.js app
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
+    origin: [
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      "https://thelocalbaba.com",
+      "https://www.thelocalbaba.com",
+      /^https:\/\/local-baba-[a-z0-9-]+\.vercel\.app$/,
+      /^https:\/\/local-baba-.*-uzairhassan375s-projects\.vercel\.app$/,
+    ],
     credentials: true,
   })
 );
 
-// Increase body limit to 20 MB so base64-encoded payment proof screenshots
-// (fallback when Bunny CDN is unavailable) can pass through without Express
-// silently rejecting the request and returning an HTML error page.
 app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 

@@ -1,7 +1,5 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Copy, Check, ExternalLink } from "lucide-react";
-import { useState } from "react";
 
 import { ProductMedia } from "@/components/ProductMedia";
 import { orders as mockOrders } from "@/data/mockData";
@@ -25,13 +23,6 @@ export default function OrderDetailPage() {
   const id = typeof params?.id === "string" ? params.id : undefined;
   const { getOrderById } = useOrders();
   const order = id ? (getOrderById(id) || mockOrders.find(o => o.id === id)) : undefined;
-  const [copied, setCopied] = useState("");
-
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(key);
-    setTimeout(() => setCopied(""), 2000);
-  };
 
   const handlePrintInvoice = () => {
     window.print();
@@ -187,51 +178,19 @@ export default function OrderDetailPage() {
           ) : null}
         </div>
 
-        {/* Tracking */}
-        <div className="bg-card rounded-card border border-border p-6">
-          <h2 className="font-heading font-semibold mb-4">Live Tracking</h2>
-          <div className="space-y-0">
-            {order.timeline.map((step, i) => (
-              <div key={i} className="flex gap-4">
-                <div className="flex flex-col items-center">
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    step.status === "completed" ? "bg-olive text-primary-foreground" :
-                    step.status === "active" ? "bg-primary animate-pulse-dot" : "bg-muted"
-                  }`}>
-                    {step.status === "completed" && <span className="text-xs">✓</span>}
-                  </div>
-                  {i < order.timeline.length - 1 && <div className="w-px flex-1 bg-border my-1" />}
-                </div>
-                <div className="pb-5">
-                  <p className={`text-sm font-medium ${step.status === "pending" ? "text-muted-foreground" : ""}`}>{step.step}</p>
-                  {step.timestamp && <p className="text-xs text-muted-foreground mt-0.5">{step.timestamp}</p>}
-                  {step.step === "Dispatched" && step.status === "completed" && order.trackingNumber && (
-                    <div className="mt-2 space-y-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-muted-foreground">Courier: {order.courier}</span>
-                        <span className="flex items-center gap-1 font-mono">
-                          {order.trackingNumber}
-                          <button onClick={() => handleCopy(order.trackingNumber!, "tracking")} className="text-primary">
-                            {copied === "tracking" ? <Check size={12} /> : <Copy size={12} />}
-                          </button>
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
-                        <a href={order.courier === "TCS" ? "https://www.tcs.com.pk/tracking" : "https://leopardscourier.com/tracking"}
-                          target="_blank" rel="noopener noreferrer"
-                          className="h-8 px-3 rounded-lg border border-border text-xs flex items-center gap-1 hover:bg-muted">
-                          Track on {order.courier} <ExternalLink size={12} />
-                        </a>
-                        <a href={`https://wa.me/923001234567?text=Track%20order%20${order.id}`} target="_blank" rel="noopener noreferrer"
-                          className="h-8 px-3 rounded-lg bg-olive text-primary-foreground text-xs flex items-center">Get WA update</a>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+        {/* Tracking shortcut */}
+        <Link
+          href={`/track-order/${order.id}`}
+          className="flex items-center justify-between bg-card rounded-card border border-border p-4 hover:border-primary/50 transition-colors"
+        >
+          <div>
+            <p className="font-heading font-semibold text-sm">Live tracking</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {order.trackingNumber ? `Dispatched via ${order.courier} · ${order.trackingNumber}` : "Not yet dispatched"}
+            </p>
           </div>
-        </div>
+          <span className="text-xs text-primary font-medium">Track order →</span>
+        </Link>
 
         {/* Items */}
         <div className="bg-card rounded-card border border-border overflow-hidden">

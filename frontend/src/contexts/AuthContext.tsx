@@ -9,6 +9,9 @@ import {
 } from "@/lib/supabase/applicationsApi";
 import { memberSignInErrorMessage } from "@/lib/authMessages";
 import { isCorruptAuthSessionError } from "@/lib/supabase/authErrors";
+import { checkSubscriptionStatus } from "@/lib/api/subscriptionApi";
+
+type SubscriptionStatus = "pending" | "active" | "rejected" | "expired" | "none";
 
 interface AuthState {
   authReady: boolean;
@@ -21,6 +24,11 @@ interface AuthState {
   refreshAuth: () => Promise<void>;
   logout: () => Promise<void>;
   logoutAdmin: () => Promise<void>;
+  /** Fetched once per member session and shared everywhere, so pages don't each re-fetch and flash a "locked" state on load. */
+  isSubscribed: boolean;
+  subscriptionStatus: SubscriptionStatus;
+  subscriptionLoading: boolean;
+  refreshSubscription: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -41,6 +49,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [member, setMember] = useState<Member | null>(null);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus>("none");
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
 
   const applySession = useCallback(async (session: Session | null) => {
     applyAdminFromSession(session, setIsAdmin);
@@ -92,6 +103,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     await applySession(data.session);
   }, [applySession]);
+
+  const refreshSubscription = useCallback(async () => {
+    if (!member?.email) {
+      setIsSubscribed(false);
+      setSubscriptionStatus("none");
+      setSubscriptionLoading(false);
+      return;
+    }
+    setSubscriptionLoading(true);
+    const sub = await checkSubscriptionStatus(member.email);
+    setIsSubscribed(sub.isSubscribed);
+    setSubscriptionStatus(sub.status);
+    setSubscriptionLoading(false);
+  }, [member?.email]);
+
+  useEffect(() => {
+    void refreshSubscription();
+  }, [refreshSubscription]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -214,7 +243,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ authReady, isLoggedIn, isAdmin, member, login, adminLogin, refreshAuth, logout, logoutAdmin }}
+      value={{
+        authReady,
+        isLoggedIn,
+        isAdmin,
+        member,
+        login,
+        adminLogin,
+        refreshAuth,
+        logout,
+        logoutAdmin,
+        isSubscribed,
+        subscriptionStatus,
+        subscriptionLoading,
+        refreshSubscription,
+      }}
     >
       {children}
     </AuthContext.Provider>

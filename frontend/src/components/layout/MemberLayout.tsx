@@ -1,16 +1,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import { LayoutDashboard, Grid3X3, Package, MapPin, Users, User, MessageCircle, Heart, Layers, Sparkles, Lock } from "lucide-react";
 import { CartSidebar } from "@/components/CartSidebar";
 import { useAuth } from "@/contexts/AuthContext";
-import { checkSubscriptionStatus } from "@/lib/api/subscriptionApi";
 
 const sidebarLinks = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Catalogue", href: "/catalogue", icon: Grid3X3 },
   { label: "My Orders", href: "/orders", icon: Package },
-  { label: "Track Order", href: "/orders", icon: MapPin },
+  { label: "Track Order", href: "/track-order", icon: MapPin },
   { label: "Favourites", href: "/favourites", icon: Heart },
   { label: "My AI Listing", href: "/my-ai-listings", icon: Sparkles, locked: true },
   { label: "Integrations", href: "/integrations", icon: Layers, locked: true },
@@ -20,14 +18,7 @@ const sidebarLinks = [
 
 export function MemberLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { member } = useAuth();
-  const [isSubscribed, setIsSubscribed] = useState(false);
-
-  useEffect(() => {
-    if (member?.email) {
-      checkSubscriptionStatus(member.email).then(res => setIsSubscribed(res.isSubscribed));
-    }
-  }, [member]);
+  const { isSubscribed } = useAuth();
 
   return (
     <div className="min-h-screen flex">
@@ -38,6 +29,7 @@ export function MemberLayout({ children }: { children: React.ReactNode }) {
             const active =
               pathname === l.href ||
               (l.href === "/orders" && pathname?.startsWith("/orders")) ||
+              (l.href === "/track-order" && pathname?.startsWith("/track-order")) ||
               (l.href === "/catalogue" && pathname?.startsWith("/catalogue")) ||
               (l.href === "/favourites" && pathname?.startsWith("/favourites")) ||
               (l.href === "/my-ai-listings" && pathname?.startsWith("/my-ai-listings")) ||
@@ -84,7 +76,7 @@ export function MemberLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 md:ml-[220px] pb-20 md:pb-0 pt-16">
+      <main className="flex-1 min-w-0 md:ml-[220px] pb-20 md:pb-0 pt-16">
         {children}
       </main>
 

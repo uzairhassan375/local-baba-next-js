@@ -16,22 +16,14 @@ import {
 import { createShopifyProduct } from "@/lib/api/shopifyApi";
 
 export default function MyAiListingsScreen() {
-  const { member } = useAuth();
+  const { member, isSubscribed, subscriptionStatus: subStatus, subscriptionLoading, refreshSubscription } = useAuth();
   const [listings, setListings] = useState<SavedAiListing[]>([]);
   const [postingId, setPostingId] = useState<string | null>(null);
-  const [isSubscribed, setIsSubscribed] = useState(false);
-  const [subStatus, setSubStatus] = useState<"pending" | "active" | "rejected" | "expired" | "none">("none");
   const [subModalOpen, setSubModalOpen] = useState(false);
 
   useEffect(() => {
     setListings(getSellerAiListings());
-    if (member?.email) {
-      checkSubscriptionStatus(member.email).then(sub => {
-        setIsSubscribed(sub.isSubscribed);
-        setSubStatus(sub.status);
-      });
-    }
-  }, [member]);
+  }, []);
 
   const handleDelete = (id: string) => {
     if (confirm("Are you sure you want to remove this saved AI listing?")) {
@@ -43,9 +35,11 @@ export default function MyAiListingsScreen() {
 
   const handlePostToShopify = async (item: SavedAiListing) => {
     if (member?.email) {
+      // Re-verify against the server right before a paid action, in case the
+      // cached context status is stale (e.g. subscription expired since load).
       const sub = await checkSubscriptionStatus(member.email);
       if (!sub.isSubscribed) {
-        setSubStatus(sub.status);
+        await refreshSubscription();
         setSubModalOpen(true);
         toast.error("Subscription required to post to Shopify ($10)");
         return;
@@ -106,7 +100,7 @@ export default function MyAiListingsScreen() {
             <h1 className="text-2xl md:text-3xl font-heading font-bold text-foreground">
               My AI Listings
             </h1>
-            {!isSubscribed && (
+            {!subscriptionLoading && !isSubscribed && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20 ml-1">
                 <Lock size={12} /> Locked
               </span>
@@ -127,7 +121,7 @@ export default function MyAiListingsScreen() {
       </div>
 
       {/* Full page Lock overlay for non-subscribed users */}
-      {!isSubscribed && (
+      {!subscriptionLoading && !isSubscribed && (
         <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-card border-2 border-amber-500/40 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg shadow-amber-500/10">
           <div className="flex items-start gap-4">
             <div className="p-4 rounded-2xl bg-amber-500/20 text-amber-500 shrink-0">
@@ -161,7 +155,11 @@ export default function MyAiListingsScreen() {
       )}
 
       {/* Content — hidden when locked until admin confirms */}
-      {!isSubscribed ? (
+      {subscriptionLoading ? (
+        <div className="flex items-center justify-center py-24">
+          <RefreshCw className="animate-spin text-primary" size={24} />
+        </div>
+      ) : !isSubscribed ? (
         <div className="bg-card border border-border rounded-2xl p-12 text-center flex flex-col items-center justify-center space-y-4 max-w-lg mx-auto shadow-sm">
           <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center">
             <Lock size={36} />
@@ -301,9 +299,8 @@ export default function MyAiListingsScreen() {
         userName={member?.name || ""}
         currentStatus={subStatus}
         onSuccess={() => {
-          // Payment submitted — stay locked until admin confirms
-          setIsSubscribed(false);
-          setSubStatus("pending");
+          // Payment submitted — refresh from server, stays locked until admin confirms
+          void refreshSubscription();
         }}
       />
     </div>

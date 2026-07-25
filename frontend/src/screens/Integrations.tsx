@@ -23,7 +23,6 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { SubscriptionModal } from "@/components/SubscriptionModal";
-import { checkSubscriptionStatus } from "@/lib/api/subscriptionApi";
 import {
   fetchShopifyStatus,
   verifyShopifyConnection,
@@ -34,11 +33,10 @@ import {
 } from "@/lib/api/shopifyApi";
 
 export default function IntegrationsScreen() {
-  const { member } = useAuth();
+  const { member, isSubscribed, subscriptionStatus: subStatus, subscriptionLoading, refreshSubscription } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [isSubscribed, setIsSubscribed] = useState(false);
-  const [subStatus, setSubStatus] = useState<"pending" | "active" | "rejected" | "expired" | "none">("none");
   const [subModalOpen, setSubModalOpen] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<"shopify" | null>(null);
 
   const [state, setState] = useState<ShopifyIntegrationState>({
     connected: false,
@@ -66,22 +64,19 @@ export default function IntegrationsScreen() {
   const [syncing, setSyncing] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
 
-  // Load status on mount
+  // Load Shopify status on mount — subscription status comes from AuthContext
+  // (fetched once at login, shared across pages), so this no longer needs to
+  // wait on a second sequential network round-trip before rendering.
   useEffect(() => {
     async function loadStatus() {
       setLoading(true);
-      if (member?.email) {
-        const sub = await checkSubscriptionStatus(member.email);
-        setIsSubscribed(sub.isSubscribed);
-        setSubStatus(sub.status);
-      }
       const data = await fetchShopifyStatus();
       setState(data);
       if (data.shopDomain) setShopDomain(data.shopDomain);
       setLoading(false);
     }
     loadStatus();
-  }, [member]);
+  }, []);
 
   const handleTestConnection = async () => {
     if (!shopDomain.trim()) {
@@ -163,7 +158,7 @@ export default function IntegrationsScreen() {
     }
   };
 
-  if (loading) {
+  if (loading || subscriptionLoading) {
     return (
       <div className="container py-12 flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
@@ -602,9 +597,8 @@ export default function IntegrationsScreen() {
         userName={member?.name || ""}
         currentStatus={subStatus}
         onSuccess={() => {
-          // Payment submitted — stay locked until admin confirms
-          setIsSubscribed(false);
-          setSubStatus("pending");
+          // Payment submitted — refresh from server, stays locked until admin confirms
+          void refreshSubscription();
         }}
       />
     </div>

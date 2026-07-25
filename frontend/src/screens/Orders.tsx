@@ -54,7 +54,7 @@ export default function OrdersPage() {
               </div>
               <div className="flex gap-2 pt-1">
                 <Link href={`/orders/${o.id}`} className="h-8 px-3 rounded-lg border border-border text-xs flex items-center hover:bg-muted transition-colors">View details</Link>
-                <Link href={`/orders/${o.id}`} className="h-8 px-3 rounded-lg border border-border text-xs flex items-center hover:bg-muted transition-colors">Track order</Link>
+                <Link href={`/track-order/${o.id}`} className="h-8 px-3 rounded-lg border border-border text-xs flex items-center hover:bg-muted transition-colors">Track order</Link>
                 <button className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs hover:bg-accent-hover transition-colors">Reorder</button>
               </div>
             </div>

@@ -75,7 +75,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
       </aside>
-      <main className="flex-1 md:ml-[220px] min-h-screen">
+      <main className="flex-1 min-w-0 md:ml-[220px] min-h-screen">
         <div className="md:hidden flex items-center justify-between h-14 px-4 border-b border-border bg-card">
           <Link href="/admin/dashboard" className="font-heading font-bold text-lg">
             LB Admin<span className="text-primary">.</span>

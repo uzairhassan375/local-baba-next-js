@@ -1,0 +1,372 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
+    --primary: 24 90% 56%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 90 15% 42%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 50%;
+    --accent: 24 90% 56%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 60% 53%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 92%;
+    --input: 0 0% 95%;
+    --ring: 24 90% 56%;
+    --radius: 0.5rem;
+
+    --clr-bg: 0 0% 100%;
+    --clr-surface: 0 0% 100%;
+    --clr-dark: 0 0% 20%;
+    --clr-accent: 24 90% 56%;
+    --clr-accent-hover: 24 85% 46%;
+    --clr-olive: 90 15% 42%;
+    --clr-muted: 0 0% 50%;
+    --clr-border: 0 0% 92%;
+    --clr-danger: 0 60% 53%;
+    --clr-success: 152 46% 33%;
+    
+    /* New light orange and gray colors */
+    --clr-light-orange: 24 100% 95%;
+    --clr-light-orange-border: 24 89% 85%;
+    --clr-light-gray: 0 0% 97%;
+    --clr-light-gray-border: 0 0% 90%;
+    --clr-card-light-orange: 24 100% 97%;
+    --clr-card-light-gray: 0 0% 98%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 20%;
+    --sidebar-primary: 24 90% 56%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 95%;
+    --sidebar-accent-foreground: 0 0% 20%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 24 90% 56%;
+
+    --shadow-subtle: 0 2px 8px rgba(0, 0, 0, 0.05);
+    --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+  h1 {
+    @apply font-heading font-bold text-5xl md:text-6xl leading-tight tracking-tight text-foreground;
+  }
+  h2 {
+    @apply font-heading font-bold text-4xl md:text-5xl leading-snug tracking-tight text-foreground;
+  }
+  h3 {
+    @apply font-heading font-bold text-2xl md:text-3xl leading-relaxed tracking-tight text-foreground;
+  }
+  h4 {
+    @apply font-heading font-bold text-xl leading-relaxed tracking-tight text-foreground;
+  }
+  h5 {
+    @apply font-heading font-semibold text-lg leading-relaxed tracking-tight text-foreground;
+  }
+  h6 {
+    @apply font-heading font-semibold text-base leading-relaxed tracking-wide text-muted-foreground uppercase;
+  }
+}
+
+@layer utilities {
+  .section-label {
+    @apply text-xs uppercase tracking-[0.1em] text-accent font-heading font-semibold;
+  }
+  
+  /* Heading enhancements */
+  .heading-lg {
+    @apply text-5xl md:text-6xl font-heading font-bold leading-tight tracking-tighter text-foreground;
+  }
+  
+  .heading-md {
+    @apply text-4xl md:text-5xl font-heading font-bold leading-snug tracking-tight text-foreground;
+  }
+  
+  .heading-sm {
+    @apply text-2xl md:text-3xl font-heading font-bold leading-relaxed tracking-tight text-foreground;
+  }
+  
+  .heading-with-accent {
+    @apply relative inline-block;
+  }
+  
+  .heading-with-accent::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-12 h-1 bg-primary rounded-full;
+  }
+  
+  /* Content box utilities with light orange and gray */
+  .card-orange {
+    @apply bg-[hsl(var(--clr-card-light-orange))] rounded-lg;
+    border: 1px solid hsl(var(--clr-light-orange-border));
+    box-shadow: inset 0 1px 0 hsla(0,0%,100%,0.6), 0 6px 18px hsla(24,90%,56%,0.06), 0 2px 6px hsla(0,0%,0%,0.04);
+    transition: box-shadow 220ms ease, transform 220ms ease, border-color 220ms ease;
+  }
+  
+  .card-gray {
+    @apply bg-[hsl(var(--clr-card-light-gray))] rounded-lg;
+    border: 1px solid hsl(var(--clr-light-gray-border));
+    box-shadow: inset 0 1px 0 hsla(255,255,255,0.7), 0 6px 18px hsla(0,0%,0%,0.04), 0 2px 6px hsla(24,90%,56%,0.03);
+    transition: box-shadow 220ms ease, transform 220ms ease, border-color 220ms ease;
+  }
+  
+  .card-orange-hover {
+    @apply card-orange;
+    &:hover {
+      box-shadow: 0 10px 30px hsla(24,90%,56%,0.10), 0 4px 10px hsla(0,0%,0%,0.06);
+      transform: translateY(-4px);
+      border-color: hsl(var(--clr-accent));
+    }
+    transition: box-shadow 240ms ease, transform 240ms ease, border-color 240ms ease;
+  }
+  
+  .card-gray-hover {
+    @apply card-gray;
+    &:hover {
+      box-shadow: 0 10px 30px hsla(0,0%,0%,0.06), 0 4px 10px hsla(24,90%,56%,0.04);
+      transform: translateY(-3px);
+      border-color: hsl(var(--clr-muted));
+    }
+    transition: box-shadow 240ms ease, transform 240ms ease, border-color 240ms ease;
+  }
+}
+
+/* Light theme scope for the public landing page */
+.theme-landing {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 20%;
+  --card: 24 100% 97%;
+  --card-foreground: 0 0% 20%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 20%;
+  --secondary: 0 0% 95%;
+  --secondary-foreground: 0 0% 20%;
+  --muted: 0 0% 95%;
+  --muted-foreground: 0 0% 50%;
+  --border: 24 89% 85%;
+  --input: 0 0% 95%;
+  --accent: 24 90% 56%;
+  --accent-foreground: 0 0% 100%;
+  --ring: 24 90% 56%;
+}
+
+/* Alternative content box colors */
+.box-orange {
+  @apply bg-[hsl(24_100%_97%)] border border-[hsl(24_89%_85%)];
+}
+
+.box-gray {
+  @apply bg-[hsl(0_0%_97%)] border border-[hsl(0_0%_90%)];
+}
+
+/* Marquee animation */
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+/* Checkmark animation */
+@keyframes checkmark-bounce {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  70% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.animate-checkmark {
+  animation: checkmark-bounce 0.6s ease-out forwards;
+}
+
+/* Fade in up */
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.3s ease-out forwards;
+}
+
+/* Staggered fade */
+.stagger-1 {
+  animation-delay: 0ms;
+}
+.stagger-2 {
+  animation-delay: 100ms;
+}
+.stagger-3 {
+  animation-delay: 200ms;
+}
+.stagger-4 {
+  animation-delay: 300ms;
+}
+
+/* Heading shine animation */
+@keyframes heading-shine {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.heading-shine {
+  background: linear-gradient(90deg, hsl(0 0% 20%) 0%, hsl(24 90% 56%) 50%, hsl(0 0% 20%) 100%);
+  background-size: 1000px 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Heading underline animation */
+@keyframes underline-expand {
+  0% {
+    width: 0;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.heading-underline {
+  position: relative;
+  display: inline-block;
+}
+
+.heading-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 0;
+  height: 3px;
+  background: hsl(24 90% 56%);
+  border-radius: 2px;
+  animation: underline-expand 0.8s ease-out forwards;
+}
+
+.stagger-5 {
+  animation-delay: 400ms;
+}
+
+/* Word stagger for hero */
+@keyframes word-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-word {
+  opacity: 0;
+  animation: word-fade 0.5s ease-out forwards;
+}
+
+/* Pulse for active step */
+@keyframes pulse-dot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 hsl(var(--clr-accent) / 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 8px hsl(var(--clr-accent) / 0);
+  }
+}
+.animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Digit flip */
+@keyframes digit-flip {
+  0% {
+    transform: rotateX(0);
+  }
+  50% {
+    transform: rotateX(-90deg);
+  }
+  100% {
+    transform: rotateX(0);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .animate-marquee {
+    animation: none;
+  }
+}
+
+/* Print styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #invoice-print,
+  #invoice-print * {
+    visibility: visible;
+  }
+  #invoice-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    display: block !important;
+  }
+  nav,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+  }
+}

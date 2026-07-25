@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Syne, DM_Sans, DM_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { Providers } from "./providers";
 import WhatsAppFab from "@/components/WhatsAppFab";
@@ -75,6 +77,8 @@ export default function RootLayout({
           <WhatsAppCommunityModal />
         </Providers>
         <WhatsAppFab />
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

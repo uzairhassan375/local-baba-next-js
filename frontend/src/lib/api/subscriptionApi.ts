@@ -1,5 +1,8 @@
-// All subscription operations now go through Next.js API routes backed by Supabase.
-// The Express backend subscription routes are no longer used.
+// All subscription operations go through the Flask backend (shared with the
+// future reseller mobile app) instead of Next.js API routes.
+import { createClient } from "@/lib/supabase/client";
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
 export interface SubscriptionInfo {
   id?: string;
@@ -53,6 +56,12 @@ async function safeJson(res: Response): Promise<any | null> {
   return res.json();
 }
 
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await createClient().auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CHECK STATUS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,9 +73,10 @@ export async function checkSubscriptionStatus(userEmail: string): Promise<{
   if (!userEmail) return { isSubscribed: false, status: "none" };
 
   try {
+    const headers = await authHeaders();
     const res = await fetch(
-      `/api/subscriptions/status?email=${encodeURIComponent(userEmail)}`,
-      { cache: "no-store" }
+      `${BACKEND_URL}/api/subscriptions/status?email=${encodeURIComponent(userEmail)}`,
+      { cache: "no-store", headers }
     );
     const data = await safeJson(res);
     if (data) {
@@ -80,7 +90,7 @@ export async function checkSubscriptionStatus(userEmail: string): Promise<{
     console.warn("[subscriptionApi] checkSubscriptionStatus failed:", err);
   }
 
-  // Fallback: localStorage
+  // Fallback: localStorage read cache (resilience only, not a credential)
   if (typeof window !== "undefined") {
     try {
       const raw = localStorage.getItem(`localbaba_subscription_${userEmail.toLowerCase()}`);
@@ -108,9 +118,10 @@ export async function submitPaymentProof(payload: {
   amount?: number;
 }): Promise<{ success: boolean; message?: string; error?: string; subscription?: SubscriptionInfo }> {
   try {
-    const res = await fetch("/api/subscriptions/submit", {
+    const headers = await authHeaders();
+    const res = await fetch(`${BACKEND_URL}/api/subscriptions/submit`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify(payload),
     });
 
@@ -139,7 +150,8 @@ export async function submitPaymentProof(payload: {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function fetchAllSubscriptions(): Promise<SubscriptionInfo[]> {
   try {
-    const res = await fetch("/api/subscriptions/list", { cache: "no-store" });
+    const headers = await authHeaders();
+    const res = await fetch(`${BACKEND_URL}/api/subscriptions/list`, { cache: "no-store", headers });
     const data = await safeJson(res);
     if (data?.subscriptions) return (data.subscriptions as any[]).map(normalise);
   } catch (err) {
@@ -156,9 +168,10 @@ export async function confirmSubscriptionPayment(
   userEmail: string
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    const res = await fetch("/api/subscriptions/confirm", {
+    const headers = await authHeaders();
+    const res = await fetch(`${BACKEND_URL}/api/subscriptions/confirm`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify({ subscriptionId, userEmail }),
     });
     const data = await safeJson(res);
@@ -177,9 +190,10 @@ export async function rejectSubscriptionPayment(
   userEmail: string
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    const res = await fetch("/api/subscriptions/reject", {
+    const headers = await authHeaders();
+    const res = await fetch(`${BACKEND_URL}/api/subscriptions/reject`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify({ subscriptionId, userEmail }),
     });
     const data = await safeJson(res);

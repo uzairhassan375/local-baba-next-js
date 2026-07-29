@@ -73,6 +73,11 @@ export default function IntegrationsScreen() {
       const data = await fetchShopifyStatus();
       setState(data);
       if (data.shopDomain) setShopDomain(data.shopDomain);
+      if (data.timedOut) {
+        toast.info("Backend is waking up", {
+          description: "The integrations service was asleep — retry in a few seconds if something looks off.",
+        });
+      }
       setLoading(false);
     }
     loadStatus();

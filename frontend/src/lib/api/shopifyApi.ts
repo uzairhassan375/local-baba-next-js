@@ -1,6 +1,7 @@
+import { createClient } from "@/lib/supabase/client";
+
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
-const LOCAL_STORAGE_KEY = "localbaba_shopify_integration";
-const CREDS_STORAGE_KEY = "localbaba_shopify_creds";
+const REQUEST_TIMEOUT_MS = 8000;
 
 export interface ShopifyIntegrationState {
   connected: boolean;
@@ -41,178 +42,130 @@ const DEFAULT_STATE: ShopifyIntegrationState = {
   },
 };
 
-function getLocalState(): ShopifyIntegrationState {
-  if (typeof window === "undefined") return DEFAULT_STATE;
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await createClient().auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/** Wraps fetch with a timeout so a sleeping/cold-starting backend can never hang the UI indefinitely. */
+async function fetchWithTimeout(url: string, init: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (!raw) return DEFAULT_STATE;
-    return JSON.parse(raw);
-  } catch (err) {
-    return DEFAULT_STATE;
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
-function saveLocalState(state: ShopifyIntegrationState): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
-  } catch (err) {
-    console.error("Failed to save shopify state to localStorage", err);
-  }
+function isTimeout(err: unknown): boolean {
+  return err instanceof DOMException && err.name === "AbortError";
 }
 
-function clearLocalState(): void {
-  if (typeof window === "undefined") return;
+export async function fetchShopifyStatus(): Promise<ShopifyIntegrationState & { timedOut?: boolean }> {
   try {
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
-    localStorage.removeItem(CREDS_STORAGE_KEY);
-  } catch (err) {
-    // ignore
-  }
-}
-
-export async function fetchShopifyStatus(): Promise<ShopifyIntegrationState> {
-  const local = getLocalState();
-
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/shopify/status`, {
+    const headers = await authHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_URL}/api/shopify/status`, {
       method: "GET",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
       cache: "no-store",
     });
     if (res.ok) {
       const data: ShopifyIntegrationState = await res.json();
-      if (data.connected) {
-        saveLocalState(data);
-        return data;
-      }
+      return data;
     }
   } catch (err) {
-    console.warn("Backend service offline, returning persisted client integration state.");
+    if (isTimeout(err)) {
+      console.warn("[shopifyApi] status request timed out — backend may be waking up.");
+      return { ...DEFAULT_STATE, timedOut: true };
+    }
+    console.warn("[shopifyApi] status request failed:", err);
   }
 
-  return local;
+  return DEFAULT_STATE;
 }
 
-export async function verifyShopifyConnection(payload: { shopDomain: string; accessToken: string }): Promise<{ success: boolean; shop?: any; error?: string }> {
+export async function verifyShopifyConnection(payload: {
+  shopDomain: string;
+  accessToken: string;
+}): Promise<{ success: boolean; shop?: any; error?: string; timedOut?: boolean }> {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/shopify/verify`, {
+    const headers = await authHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_URL}/api/shopify/verify`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (res.ok) return data;
     return { success: false, error: data.error || "Verification failed" };
   } catch (err: any) {
-    // Client-side validation fallback if backend server isn't running yet
-    if (payload.shopDomain.includes("myshopify.com") || payload.shopDomain.length > 3) {
-      return {
-        success: true,
-        shop: {
-          name: payload.shopDomain.split(".")[0].toUpperCase() + " Store",
-          domain: payload.shopDomain,
-          currency: "PKR",
-        },
-      };
+    if (isTimeout(err)) {
+      return { success: false, timedOut: true, error: "Backend is waking up — please try again in a few seconds." };
     }
-    return { success: false, error: "Please enter a valid .myshopify.com store domain." };
+    return { success: false, error: "Could not reach backend server." };
   }
 }
 
-export async function connectShopifyStore(payload: ConnectShopifyPayload): Promise<{ success: boolean; message?: string; error?: string }> {
-  const activeState: ShopifyIntegrationState = {
-    connected: true,
-    shopDomain: payload.shopDomain,
-    storeName: payload.shopDomain.replace(".myshopify.com", "").toUpperCase() + " Store",
-    currency: "PKR",
-    connectedAt: new Date().toISOString(),
-    syncedProductsCount: 18,
-    syncPreferences: payload.syncPreferences || DEFAULT_STATE.syncPreferences,
-  };
-
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(
-        CREDS_STORAGE_KEY,
-        JSON.stringify({
-          shopDomain: payload.shopDomain,
-          accessToken: payload.accessToken,
-          apiSecretKey: payload.apiSecretKey,
-        })
-      );
-    } catch (err) {
-      // ignore
-    }
-  }
-
+export async function connectShopifyStore(
+  payload: ConnectShopifyPayload
+): Promise<{ success: boolean; message?: string; error?: string; timedOut?: boolean }> {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/shopify/connect`, {
+    const headers = await authHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_URL}/api/shopify/connect`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (res.ok) {
-      if (data.integration) {
-        saveLocalState({ ...activeState, ...data.integration });
-      } else {
-        saveLocalState(activeState);
-      }
-      return data;
+    if (res.ok) return data;
+    return { success: false, error: data.error || "Could not connect Shopify store." };
+  } catch (err: any) {
+    if (isTimeout(err)) {
+      return { success: false, timedOut: true, error: "Backend is waking up — please try again in a few seconds." };
     }
-    saveLocalState(activeState);
-    return { success: true, message: `Connected to Shopify store: ${payload.shopDomain}` };
-  } catch (err) {
-    saveLocalState(activeState);
-    return { success: true, message: `Connected to Shopify store: ${payload.shopDomain}` };
+    return { success: false, error: "Could not reach backend server." };
   }
 }
 
-export async function syncShopifyProducts(): Promise<{ success: boolean; productsCount?: number; message?: string; error?: string }> {
-  const current = getLocalState();
-  const updatedState: ShopifyIntegrationState = {
-    ...current,
-    lastSyncedAt: new Date().toISOString(),
-    syncedProductsCount: (current.syncedProductsCount || 0) + 12,
-  };
-
+export async function syncShopifyProducts(): Promise<{
+  success: boolean;
+  productsCount?: number;
+  message?: string;
+  error?: string;
+  timedOut?: boolean;
+}> {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/shopify/sync-products`, {
+    const headers = await authHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_URL}/api/shopify/sync-products`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
     });
     const data = await res.json();
-    if (res.ok) {
-      saveLocalState(updatedState);
-      return data;
+    if (res.ok) return data;
+    return { success: false, error: data.error || "Sync failed." };
+  } catch (err: any) {
+    if (isTimeout(err)) {
+      return { success: false, timedOut: true, error: "Backend is waking up — please try again in a few seconds." };
     }
-  } catch (err) {
-    saveLocalState(updatedState);
+    return { success: false, error: "Could not reach backend server." };
   }
-
-  saveLocalState(updatedState);
-
-  return {
-    success: true,
-    productsCount: updatedState.syncedProductsCount,
-    message: `Synced ${updatedState.syncedProductsCount} products from Shopify store catalog.`,
-  };
 }
 
-export async function disconnectShopifyStore(): Promise<{ success: boolean; message?: string }> {
-  clearLocalState();
-
+export async function disconnectShopifyStore(): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    await fetch(`${BACKEND_URL}/api/shopify/disconnect`, {
+    const headers = await authHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_URL}/api/shopify/disconnect`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
     });
+    const data = await res.json();
+    if (res.ok) return data;
+    return { success: false, error: data.error || "Could not disconnect." };
   } catch (err) {
-    // Ignore error
+    return { success: false, error: "Could not reach backend server." };
   }
-
-  return { success: true, message: "Disconnected Shopify store." };
 }
 
 export async function createShopifyProduct(productPayload: {
@@ -225,32 +178,12 @@ export async function createShopifyProduct(productPayload: {
   inventory_quantity?: number;
   images?: Array<{ src: string }>;
 }): Promise<{ success: boolean; message?: string; product?: any; shopifyAdminUrl?: string; error?: string }> {
-  let shopDomain = "";
-  let accessToken = "";
-
-  if (typeof window !== "undefined") {
-    try {
-      const raw = localStorage.getItem(CREDS_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        shopDomain = parsed.shopDomain || "";
-        accessToken = parsed.accessToken || "";
-      }
-    } catch (err) {}
-  }
-
-  const fullPayload = {
-    ...productPayload,
-    shopDomain,
-    accessToken,
-  };
-
-  // Call Express backend — single source of truth for Shopify API calls
   try {
-    const res = await fetch(`${BACKEND_URL}/api/shopify/create-product`, {
+    const headers = await authHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_URL}/api/shopify/create-product`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(fullPayload),
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify(productPayload),
     });
     const data = await res.json();
     if (res.ok) {
@@ -258,10 +191,12 @@ export async function createShopifyProduct(productPayload: {
     }
     return { success: false, error: data.error || `Shopify creation failed (${res.status})` };
   } catch (err: any) {
+    if (isTimeout(err)) {
+      return { success: false, error: "Backend is waking up — please try again in a few seconds." };
+    }
     return {
       success: false,
-      error: "Could not reach backend server. Make sure the backend is running on port 5000.",
+      error: "Could not reach backend server.",
     };
   }
 }
-

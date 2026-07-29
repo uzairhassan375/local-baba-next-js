@@ -2,7 +2,7 @@ import uuid
 
 import requests
 
-from ..config import config
+from ...core.config import config
 
 TIMEOUT = 20
 

@@ -1,0 +1,113 @@
+# Local Baba Backend
+
+Flask API shared by the web app (Next.js) and the reseller mobile app. Talks
+to Supabase using the service-role key, so it — not individual clients — is
+the single place authorization rules live.
+
+## Structure
+
+```
+app/
+  core/            shared infra: config, JWT auth, error handlers, Supabase client
+  api/
+    <feature>/
+      routes.py     Flask blueprint + endpoints for this feature
+      service.py     external API calls / business logic (only where needed:
+                      shopify, images)
+wsgi.py             gunicorn entrypoint (`from app import create_app`)
+```
+
+Each feature under `app/api/` is self-contained: its blueprint, its request
+handling, and (if it talks to something other than Supabase) its own
+`service.py`. To add a new feature, copy the shape of an existing one
+(`app/api/blasts/` is the simplest example) and register its blueprint in
+`app/api/__init__.py`.
+
+## Running locally
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+set -a; source .env.local; set +a
+python3 wsgi.py            # http://localhost:5000
+```
+
+## Auth
+
+Every member-scoped endpoint expects:
+
+```
+Authorization: Bearer <supabase access_token>
+```
+
+Get that token from the Supabase client SDK after sign-in (`supabase.auth.getSession()`
+on web, the equivalent on mobile — `supabase-flutter` / `supabase-swift` etc.).
+The backend verifies it locally (`app/core/auth.py`, HS256 against
+`SUPABASE_JWT_SECRET`) and enforces access rules in Python — it does not rely
+on Postgres RLS, since it connects with the service-role key.
+
+Endpoints marked "public" below need no header. Everything else 401s without
+a valid token, and further restricts by ownership (e.g. you only ever see
+your own orders) or by admin email (`ADMIN_EMAIL` env var) where noted.
+
+Response envelope: `{"success": true, ...}` or `{"success": false, "error": "..."}`.
+
+## Endpoints
+
+### Health
+- `GET /api/health` — public.
+
+### Shopify integration (`app/api/shopify/`)
+Per-member row in the `shopify_integrations` table — no shared/global state.
+- `GET /api/shopify/status` — auth required.
+- `POST /api/shopify/verify` — auth required. Body: `{shopDomain, accessToken}`.
+- `POST /api/shopify/connect` — auth required. Body: `{shopDomain, accessToken, apiSecretKey?, syncPreferences?}`.
+- `POST /api/shopify/sync-products` — auth required.
+- `POST /api/shopify/disconnect` — auth required.
+- `POST /api/shopify/create-product` — auth required. Body: product fields only, no credentials.
+- `POST /api/shopify/webhook` — public (called by Shopify), verified via per-shop HMAC secret.
+
+### Images (`app/api/images/`)
+- `POST /api/images/search` — public. Body: `{imageUrl?, productName?, limit?}`.
+
+### Subscriptions (`app/api/subscriptions/`)
+- `GET /api/subscriptions/status?email=` — auth required (own email, or admin).
+- `POST /api/subscriptions/submit` — auth required. Body: `{userEmail, userName?, paymentProofUrl, amount?}`.
+- `GET /api/subscriptions/list` — admin only.
+- `POST /api/subscriptions/confirm` — admin only. Body: `{subscriptionId}` or `{userEmail}`.
+- `POST /api/subscriptions/reject` — admin only. Same body shape.
+
+### Products / catalogue (`app/api/products/`)
+- `GET /api/products` — public (non-admin sees `active`/`sold_out` only). Query params: `category`, `catalog_type`, `trending=true`, `landing=true`, `limit`.
+- `GET /api/products/<id_or_slug>` — public, same visibility rule.
+
+### Orders (`app/api/orders/`)
+- `GET /api/orders` — auth required, own orders only (admin sees all).
+- `GET /api/orders/<order_id>` — auth required, 404 if not yours.
+- `POST /api/orders` — auth required, creates an order for the caller.
+- `PATCH /api/orders/<order_id>` — auth required. Members may only cancel; admin-only fields (`payment_status`, `courier`, `tracking_number`) are rejected from non-admin callers.
+
+### Applications / profile (`app/api/applications/`)
+- `POST /api/applications` — public, membership signup form.
+- `GET /api/profile` — auth required, caller's own application row.
+- `PATCH /api/profile` — auth required. Editable: `name`, `whatsapp`, `city`, `businessName`.
+
+### China delivery prices (`app/api/china_delivery/`)
+- `GET /api/china-delivery-prices` — public.
+
+### Blasts / announcements (`app/api/blasts/`)
+- `GET /api/blasts` — auth required. Non-admin sees published only; admin sees all.
+
+## Mobile app integration
+
+The mobile app doesn't need its own Supabase wiring for data — only for
+auth. Sign in with the Supabase SDK to get a JWT, then call this backend
+exactly like the web app does, with that JWT as the bearer token. See
+`frontend/src/lib/api/shopifyApi.ts` and `subscriptionApi.ts` for a reference
+client implementation (timeout handling, auth header attachment).
+
+`products`, `orders`, `applications`/`profile`, `china_delivery`, and
+`blasts` are fully built and tested against production data but not yet
+consumed by the web frontend (which still reads/writes Supabase directly for
+those, protected by RLS) — the mobile app can start using them today.

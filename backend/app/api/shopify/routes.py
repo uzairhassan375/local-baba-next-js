@@ -2,9 +2,9 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, g, jsonify, request
 
-from ..auth import require_auth
-from ..services import shopify_service
-from ..supabase_client import get_admin_client
+from ...core.auth import require_auth
+from . import service as shopify_service
+from ...core.supabase_client import get_admin_client
 
 shopify_bp = Blueprint("shopify", __name__)
 

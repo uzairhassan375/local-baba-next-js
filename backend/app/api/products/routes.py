@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 
-from ..auth import get_current_user, is_admin
-from ..supabase_client import get_admin_client
+from ...core.auth import get_current_user, is_admin
+from ...core.supabase_client import get_admin_client
 
 products_bp = Blueprint("products", __name__)
 

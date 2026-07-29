@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
 
-from ..supabase_client import get_admin_client
+from ...core.supabase_client import get_admin_client
 
 china_delivery_bp = Blueprint("china_delivery", __name__)
 

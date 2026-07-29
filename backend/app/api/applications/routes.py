@@ -2,8 +2,8 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, g, jsonify, request
 
-from ..auth import get_current_user, require_auth
-from ..supabase_client import get_admin_client
+from ...core.auth import get_current_user, require_auth
+from ...core.supabase_client import get_admin_client
 
 applications_bp = Blueprint("applications", __name__)
 

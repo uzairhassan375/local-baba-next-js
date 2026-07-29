@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, g, jsonify, request
 
-from ..auth import is_admin, require_admin, require_auth
-from ..supabase_client import get_admin_client
+from ...core.auth import is_admin, require_admin, require_auth
+from ...core.supabase_client import get_admin_client
 
 subscriptions_bp = Blueprint("subscriptions", __name__)
 

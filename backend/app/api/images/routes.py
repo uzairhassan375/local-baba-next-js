@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 
-from ..services import serp_service
+from . import service as serp_service
 
 images_bp = Blueprint("images", __name__)
 

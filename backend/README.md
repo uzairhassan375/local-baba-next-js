@@ -43,8 +43,9 @@ Authorization: Bearer <supabase access_token>
 
 Get that token from the Supabase client SDK after sign-in (`supabase.auth.getSession()`
 on web, the equivalent on mobile — `supabase-flutter` / `supabase-swift` etc.).
-The backend verifies it locally (`app/core/auth.py`, HS256 against
-`SUPABASE_JWT_SECRET`) and enforces access rules in Python — it does not rely
+The backend verifies it against the project's JWKS endpoint (`app/core/auth.py`,
+ES256 — Supabase signs access tokens with an asymmetric key, not the legacy
+shared "JWT Secret") and enforces access rules in Python — it does not rely
 on Postgres RLS, since it connects with the service-role key.
 
 Endpoints marked "public" below need no header. Everything else 401s without

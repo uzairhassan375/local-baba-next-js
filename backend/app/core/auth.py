@@ -2,19 +2,36 @@ from functools import wraps
 
 import jwt
 from flask import g, jsonify, request
+from jwt import PyJWKClient
 
 from .config import config
 
+_jwks_client: PyJWKClient | None = None
+
+
+def _get_jwks_client() -> PyJWKClient:
+    """Supabase signs access tokens with an asymmetric key (ES256) published
+    at this project's JWKS endpoint — not the legacy shared HS256 "JWT
+    Secret". PyJWKClient fetches and caches the public key(s), matching by
+    the token's `kid` header, and refreshes automatically on key rotation.
+    """
+    global _jwks_client
+    if _jwks_client is None:
+        jwks_url = f"{config.SUPABASE_URL}/auth/v1/.well-known/jwks.json"
+        _jwks_client = PyJWKClient(jwks_url, cache_keys=True)
+    return _jwks_client
+
 
 def decode_supabase_jwt(token: str) -> dict | None:
-    """Locally verify a Supabase-issued access token (HS256) and return
-    {"id": <auth.uid()>, "email": <email>}, or None if invalid/expired.
+    """Verify a Supabase-issued access token against the project's JWKS and
+    return {"id": <auth.uid()>, "email": <email>}, or None if invalid/expired.
     """
     try:
+        signing_key = _get_jwks_client().get_signing_key_from_jwt(token)
         payload = jwt.decode(
             token,
-            config.SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
+            signing_key.key,
+            algorithms=["ES256"],
             audience="authenticated",
             leeway=10,
         )

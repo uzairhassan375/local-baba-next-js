@@ -10,7 +10,6 @@ class Config:
     PORT = int(os.environ.get("PORT", 5000))
     SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
     SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-    SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET", "")
     SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "")
     ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "")
 

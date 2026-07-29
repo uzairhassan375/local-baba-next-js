@@ -2,15 +2,15 @@ from flask import Flask
 
 
 def register_blueprints(app: Flask) -> None:
-    from .health.routes import health_bp
-    from .shopify.routes import shopify_bp
-    from .images.routes import images_bp
-    from .subscriptions.routes import subscriptions_bp
-    from .products.routes import products_bp
-    from .orders.routes import orders_bp
-    from .applications.routes import applications_bp
-    from .china_delivery.routes import china_delivery_bp
-    from .blasts.routes import blasts_bp
+    from .health import health_bp
+    from .shopify import shopify_bp
+    from .images import images_bp
+    from .subscriptions import subscriptions_bp
+    from .products import products_bp
+    from .orders import orders_bp
+    from .applications import applications_bp
+    from .china_delivery import china_delivery_bp
+    from .blasts import blasts_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(shopify_bp, url_prefix="/api/shopify")

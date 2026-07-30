@@ -100,6 +100,25 @@ Per-member row in the `shopify_integrations` table — no shared/global state.
 ### Blasts / announcements (`app/api/blasts/`)
 - `GET /api/blasts` — auth required. Non-admin sees published only; admin sees all.
 
+### Favorites (`app/api/favorites/`)
+- `GET /api/favorites` — auth required, caller's own favorited products (joined with `products`).
+- `POST /api/favorites` — auth required. Body: `{productId}`.
+- `DELETE /api/favorites/<product_id>` — auth required.
+
+### Cart (`app/api/cart/`)
+- `GET /api/cart` — auth required, caller's own cart items (joined with `products`).
+- `POST /api/cart` — auth required. Body: `{productId, quantity?}` (default 30). Also removes the product from favorites, if present.
+- `PATCH /api/cart/<product_id>` — auth required. Body: `{quantity}`.
+- `DELETE /api/cart/<product_id>` — auth required, removes one item.
+- `DELETE /api/cart` — auth required, clears the whole cart (call after checkout).
+
+### Notifications (`app/api/notifications/`)
+Real per-user rows in `member_notifications`, created server-side by the orders/subscriptions endpoints (order placed/payment confirmed/dispatched/delivered/cancelled, subscription submitted/confirmed/rejected) and by a Postgres trigger when an admin publishes a blast.
+- `GET /api/notifications` — auth required, caller's own notifications, newest first.
+- `POST /api/notifications/mark-all-read` — auth required.
+- `PATCH /api/notifications/<id>/read` — auth required.
+- `DELETE /api/notifications/<id>` — auth required, permanent delete.
+
 ## Mobile app integration
 
 The mobile app doesn't need its own Supabase wiring for data — only for
@@ -112,3 +131,8 @@ client implementation (timeout handling, auth header attachment).
 `blasts` are fully built and tested against production data but not yet
 consumed by the web frontend (which still reads/writes Supabase directly for
 those, protected by RLS) — the mobile app can start using them today.
+
+`favorites`, `cart`, and `notifications` are consumed by both the web
+frontend and the mobile app's `FavouritesService`/`CartService`/`NotificationsService`
+(via `DatabaseService` in `lib/services/database_service.dart`) — neither
+stores this locally or reads Supabase directly anymore.

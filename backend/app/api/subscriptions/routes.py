@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, g, jsonify, request
 
 from ...core.auth import is_admin, require_admin, require_auth
+from ...core.notifications import create_notification
 from ...core.supabase_client import get_admin_client
 
 subscriptions_bp = Blueprint("subscriptions", __name__)
@@ -117,6 +118,16 @@ def submit():
     if not res.data:
         return jsonify(success=False, error="Could not save subscription."), 500
 
+    subscription_id = res.data[0].get("id")
+    create_notification(
+        db,
+        g.user["id"],
+        "subscription_pending",
+        "Subscription payment submitted",
+        "Your $10 payment proof is waiting for admin confirmation to unlock AI Listing & Integrations.",
+        related_id=str(subscription_id),
+    )
+
     return jsonify(
         success=True,
         message="Payment proof submitted! Admin will verify and activate your subscription.",
@@ -150,6 +161,35 @@ def _set_status(new_status: str):
 
     row = res.data[0]
     verb = "confirmed" if new_status == "active" else "rejected"
+
+    member_res = (
+        db.table("membership_applications")
+        .select("auth_user_id")
+        .eq("email", row.get("user_email"))
+        .maybe_single()
+        .execute()
+    )
+    member_row = member_res.data if member_res else None
+    if member_row and member_row.get("auth_user_id"):
+        if new_status == "active":
+            create_notification(
+                db,
+                member_row["auth_user_id"],
+                "subscription_active",
+                "Subscription activated",
+                "Admin confirmed your payment — AI Listing & Integrations are now unlocked!",
+                related_id=str(row.get("id")),
+            )
+        elif new_status == "rejected":
+            create_notification(
+                db,
+                member_row["auth_user_id"],
+                "subscription_rejected",
+                "Subscription rejected",
+                "Your $10/month subscription payment could not be verified. Please contact support or resubmit.",
+                related_id=str(row.get("id")),
+            )
+
     return jsonify(
         success=True,
         message=f"Subscription {verb} for {row.get('user_email')}.",

@@ -4,9 +4,16 @@ from datetime import datetime, timezone
 from flask import Blueprint, g, jsonify, request
 
 from ...core.auth import is_admin, require_auth
+from ...core.notifications import create_notification
 from ...core.supabase_client import get_admin_client
 
 orders_bp = Blueprint("orders", __name__)
+
+ORDER_STATUS_NOTIFICATIONS = {
+    "dispatched": ("order_dispatched", "Order dispatched"),
+    "delivered": ("order_delivered", "Order delivered"),
+    "cancelled": ("order_cancelled", "Order cancelled"),
+}
 
 MEMBER_WRITABLE_FIELDS = {"order_status", "notes", "delivery_address", "city"}
 CANCELLABLE_FROM = {"processing"}
@@ -99,6 +106,16 @@ def create_order():
     res = db.table("member_orders").insert(record).execute()
     if not res.data:
         return jsonify(success=False, error="Could not create order."), 500
+
+    create_notification(
+        db,
+        g.user["id"],
+        "order_placed",
+        "Order placed",
+        f"Your order #{order_id} has been placed and is awaiting payment confirmation.",
+        related_id=order_id,
+    )
+
     return jsonify(success=True, order=_map_row(res.data[0]))
 
 
@@ -133,4 +150,29 @@ def update_order(order_id: str):
     res2 = db.table("member_orders").update(updates).eq("id", order_id).execute()
     if not res2.data:
         return jsonify(success=False, error="Could not update order."), 500
+
+    member_id = row.get("member_id")
+    if updates.get("payment_status") == "confirmed" and row.get("payment_status") != "confirmed":
+        create_notification(
+            db,
+            member_id,
+            "payment_confirmed",
+            "Payment confirmed",
+            f"Admin confirmed your payment for order #{order_id} — it's now in packing!",
+            related_id=order_id,
+        )
+    new_order_status = updates.get("order_status")
+    if new_order_status and new_order_status != row.get("order_status") and new_order_status in ORDER_STATUS_NOTIFICATIONS:
+        notif_type, notif_title = ORDER_STATUS_NOTIFICATIONS[new_order_status]
+        if new_order_status == "dispatched":
+            courier = updates.get("courier") or row.get("courier")
+            tracking_number = updates.get("tracking_number") or row.get("tracking_number")
+            suffix = f" via {courier}{f' ({tracking_number})' if tracking_number else ''}" if courier else ""
+            notif_body = f"Your order #{order_id} has been dispatched{suffix}."
+        elif new_order_status == "delivered":
+            notif_body = f"Your order #{order_id} has been delivered. Thanks for shopping with us!"
+        else:
+            notif_body = f"Your order #{order_id} was cancelled."
+        create_notification(db, member_id, notif_type, notif_title, notif_body, related_id=order_id)
+
     return jsonify(success=True, order=_map_row(res2.data[0]))

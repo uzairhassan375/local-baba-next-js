@@ -11,6 +11,9 @@ def register_blueprints(app: Flask) -> None:
     from .applications import applications_bp
     from .china_delivery import china_delivery_bp
     from .blasts import blasts_bp
+    from .favorites import favorites_bp
+    from .cart import cart_bp
+    from .notifications import notifications_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(shopify_bp, url_prefix="/api/shopify")
@@ -21,3 +24,6 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(applications_bp, url_prefix="/api")
     app.register_blueprint(china_delivery_bp, url_prefix="/api")
     app.register_blueprint(blasts_bp, url_prefix="/api/blasts")
+    app.register_blueprint(favorites_bp, url_prefix="/api/favorites")
+    app.register_blueprint(cart_bp, url_prefix="/api/cart")
+    app.register_blueprint(notifications_bp, url_prefix="/api/notifications")

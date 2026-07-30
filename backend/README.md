@@ -29,9 +29,10 @@ handling, and (if it talks to something other than Supabase) its own
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-set -a; source .env.local; set +a
 python3 wsgi.py            # http://localhost:5000
 ```
+
+`.env.local` is loaded automatically (see `app/core/config.py`) — no need to `source` it manually first.
 
 ## Auth
 

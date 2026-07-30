@@ -1,5 +1,15 @@
 import os
 import re
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Loads backend/.env.local into the process environment automatically, so
+# `python wsgi.py` works whether or not it was manually sourced first (see
+# README.md). No-op if the file doesn't exist (e.g. on Render, which sets
+# real environment variables directly) — and never overrides a variable
+# that's already set in the environment.
+load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env.local")
 
 
 def _split_origins(raw: str) -> list[str]:

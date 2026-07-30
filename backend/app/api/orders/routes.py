@@ -135,6 +135,7 @@ def update_order(order_id: str):
         updates = {k: v for k, v in body.items() if k in {
             "payment_status", "order_status", "courier", "tracking_number",
             "delivery_address", "city", "notes", "total", "delivery_charges", "discount",
+            "items", "timeline",
         }}
     else:
         updates = {k: v for k, v in body.items() if k in MEMBER_WRITABLE_FIELDS}

@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
+import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { ProfileProvider } from "@/contexts/ProfileContext";
 import { OrdersProvider } from "@/contexts/OrdersContext";
 
@@ -17,16 +18,18 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <FavoritesProvider>
-          <ProfileProvider>
-            <OrdersProvider>
-              <CartProvider>
-                <TooltipProvider>
-                  <Sonner />
-                  {children}
-                </TooltipProvider>
-              </CartProvider>
-            </OrdersProvider>
-          </ProfileProvider>
+          <NotificationsProvider>
+            <ProfileProvider>
+              <OrdersProvider>
+                <CartProvider>
+                  <TooltipProvider>
+                    <Sonner />
+                    {children}
+                  </TooltipProvider>
+                </CartProvider>
+              </OrdersProvider>
+            </ProfileProvider>
+          </NotificationsProvider>
         </FavoritesProvider>
       </AuthProvider>
     </QueryClientProvider>

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { orders as initialMockOrders, type Order } from "@/data/mockData";
-import { insertMemberOrder, updateMemberOrder, fetchAllMemberOrders } from "@/lib/supabase/memberOrdersApi";
+import { createOrder as apiCreateOrder, updateOrder as apiUpdateOrder, fetchOrders } from "@/lib/api/ordersApi";
 
 export interface ManualInvoice {
   id: string;
@@ -67,13 +67,13 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
 
-  // Load from Supabase first, fallback to localStorage/mock
+  // Load from the backend first, fallback to localStorage/mock
   useEffect(() => {
     async function loadOrders() {
       setIsLoadingOrders(true);
       try {
-        // Try to get from Supabase
-        const dbOrders = await fetchAllMemberOrders();
+        // Try to get from the backend
+        const dbOrders = await fetchOrders();
         if (dbOrders.length > 0) {
           setOrders(dbOrders);
         } else {
@@ -90,7 +90,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           }
         }
       } catch (err) {
-        console.warn("Supabase order fetch failed, using local fallback:", err);
+        console.warn("Backend order fetch failed, using local fallback:", err);
         try {
           const saved = localStorage.getItem("localbaba_member_orders");
           if (saved) {
@@ -132,73 +132,44 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     }
   }, [manualInvoices, isLoaded]);
 
-  /** Refresh orders from Supabase DB (callable from admin) */
+  /** Refresh orders from the backend (callable from admin) */
   const refreshOrdersFromDb = async () => {
     setIsLoadingOrders(true);
     try {
-      const dbOrders = await fetchAllMemberOrders();
+      const dbOrders = await fetchOrders();
       if (dbOrders.length > 0) {
         setOrders(dbOrders);
       }
     } catch (err) {
-      console.error("Failed to refresh orders from DB:", err);
+      console.error("Failed to refresh orders from backend:", err);
     } finally {
       setIsLoadingOrders(false);
     }
   };
 
   const addOrder = async (input: AddOrderInput): Promise<Order> => {
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    const orderId = `LB-${randomNum}`;
-    const now = new Date();
-
-    const formattedTime = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const formattedDate = now.toLocaleDateString([], { day: "2-digit", month: "short" });
-
-    const newOrder: Order = {
-      id: orderId,
-      memberId: input.memberId || "m1",
+    // Created server-side (id, default timeline, notification) so the
+    // order-lifecycle notifications actually fire — see backend/app/api/orders/routes.py.
+    const res = await apiCreateOrder({
       customerName: input.customerName,
       items: input.items,
       total: input.total,
-      deliveryCharges: input.deliveryCharges ?? 250,
-      discount: input.discount ?? 0,
-      paymentMethod: input.paymentMethod as any,
-      paymentStatus: input.paymentStatus || "pending",
-      orderStatus: "processing",
-      createdAt: now.toISOString(),
+      deliveryCharges: input.deliveryCharges,
+      discount: input.discount,
+      paymentMethod: input.paymentMethod,
       deliveryAddress: input.deliveryAddress,
       city: input.city,
       notes: input.notes,
       paymentScreenshot: input.paymentScreenshot,
       transactionRef: input.transactionRef,
-      timeline: [
-        { step: "Order placed", timestamp: `${formattedDate}, ${formattedTime}`, status: "completed" },
-        { step: "Payment confirmation", timestamp: "within 2 hours of transfer", status: "active" },
-        { step: "Packed", status: "pending" },
-        { step: "Dispatched", status: "pending" },
-        { step: "Out for delivery", status: "pending" },
-        { step: "Delivered", status: "pending" },
-      ],
-    };
+    });
 
-    // Update local state immediately
-    setOrders(prev => [newOrder, ...prev]);
-
-    // Persist to Supabase in background (don't block UI)
-    try {
-      await insertMemberOrder(newOrder);
-    } catch (err) {
-      console.warn("Supabase order insert failed (saved locally):", err);
-      // Still save to localStorage as fallback
-      try {
-        const saved = localStorage.getItem("localbaba_member_orders");
-        const existing: Order[] = saved ? JSON.parse(saved) : [];
-        localStorage.setItem("localbaba_member_orders", JSON.stringify([newOrder, ...existing]));
-      } catch {}
+    if (!res.success || !res.order) {
+      throw new Error(res.error || "Could not place order.");
     }
 
-    return newOrder;
+    setOrders(prev => [res.order!, ...prev]);
+    return res.order;
   };
 
   const updateOrder = async (id: string, updatedData: Partial<Order>): Promise<void> => {
@@ -207,7 +178,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       prev.map(o => (o.id === id ? { ...o, ...updatedData } : o))
     );
 
-    // Build Supabase patch object (snake_case)
+    // Build the backend patch object (snake_case, matching /api/orders PATCH)
     const patch: Record<string, unknown> = {};
     if (updatedData.items !== undefined) patch.items = updatedData.items;
     if (updatedData.total !== undefined) patch.total = updatedData.total;
@@ -222,10 +193,13 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     if (updatedData.timeline !== undefined) patch.timeline = updatedData.timeline;
 
     if (Object.keys(patch).length > 0) {
-      try {
-        await updateMemberOrder(id, patch as any);
-      } catch (err) {
-        console.warn("Supabase order update failed:", err);
+      const res = await apiUpdateOrder(id, patch);
+      if (!res.success) {
+        console.warn("Order update failed:", res.error);
+        throw new Error(res.error || "Could not update order.");
+      }
+      if (res.order) {
+        setOrders(prev => prev.map(o => (o.id === id ? res.order! : o)));
       }
     }
   };

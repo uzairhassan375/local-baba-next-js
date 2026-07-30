@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchFavorites, addFavorite as apiAddFavorite, removeFavorite as apiRemoveFavorite } from "@/lib/api/favoritesApi";
 
 interface FavoritesState {
   favoriteIds: string[];
@@ -10,43 +11,44 @@ interface FavoritesState {
 
 const FavoritesContext = createContext<FavoritesState | null>(null);
 
-function storageKey(memberId: string) {
-  return `localbaba_favorites_${memberId}`;
-}
-
-function loadFavorites(memberId: string | undefined): string[] {
-  if (!memberId) return [];
-  try {
-    const data = localStorage.getItem(storageKey(memberId));
-    return data ? (JSON.parse(data) as string[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   const { member } = useAuth();
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
 
   useEffect(() => {
-    setFavoriteIds(loadFavorites(member?.id));
+    if (!member?.id) {
+      setFavoriteIds([]);
+      return;
+    }
+    let cancelled = false;
+    fetchFavorites().then(favorites => {
+      if (!cancelled) setFavoriteIds(favorites.map(f => f.productId));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [member?.id]);
-
-  useEffect(() => {
-    if (!member?.id) return;
-    localStorage.setItem(storageKey(member.id), JSON.stringify(favoriteIds));
-  }, [favoriteIds, member?.id]);
 
   const isFavorite = useCallback((productId: string) => favoriteIds.includes(productId), [favoriteIds]);
 
-  const toggleFavorite = useCallback((productId: string) => {
-    setFavoriteIds(prev =>
-      prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId],
-    );
-  }, []);
+  const toggleFavorite = useCallback(
+    (productId: string) => {
+      setFavoriteIds(prev => {
+        const alreadyFavorite = prev.includes(productId);
+        if (alreadyFavorite) {
+          void apiRemoveFavorite(productId);
+          return prev.filter(id => id !== productId);
+        }
+        void apiAddFavorite(productId);
+        return [...prev, productId];
+      });
+    },
+    [],
+  );
 
   const removeFavorite = useCallback((productId: string) => {
     setFavoriteIds(prev => prev.filter(id => id !== productId));
+    void apiRemoveFavorite(productId);
   }, []);
 
   return (

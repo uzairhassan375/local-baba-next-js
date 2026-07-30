@@ -1,10 +1,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Grid3X3, Package, Users, User, Menu, X, ShoppingCart, Heart } from "lucide-react";
+import { Home, Grid3X3, Package, Users, User, Menu, X, ShoppingCart, Heart, Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { useNotifications } from "@/contexts/NotificationsContext";
 
 const navLinks = [
   { label: "Catalogue", href: "/catalogue" },
@@ -28,6 +29,7 @@ export function MemberNavbar() {
   const { member, logout } = useAuth();
   const { openCart, itemCount } = useCart();
   const { favoriteIds } = useFavorites();
+  const { unreadCount } = useNotifications();
   const pathname = usePathname();
   const initials = member?.name?.split(" ").map(w => w[0]).join("").slice(0, 2) || "MB";
 
@@ -48,6 +50,14 @@ export function MemberNavbar() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link href="/notifications" className="relative text-foreground p-2" aria-label="Notifications">
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </Link>
             <Link href="/favourites" className="relative text-foreground p-2" aria-label="Favourites">
               <Heart
                 size={20}

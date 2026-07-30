@@ -1,4 +1,14 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFavorites } from "@/contexts/FavoritesContext";
+import {
+  fetchCart,
+  addToCart as apiAddToCart,
+  updateCartQty as apiUpdateCartQty,
+  removeFromCart as apiRemoveFromCart,
+  clearCart as apiClearCart,
+  type CartEntry,
+} from "@/lib/api/cartApi";
 
 export interface CartItem {
   productId: string;
@@ -24,43 +34,77 @@ interface CartState {
 
 const CartContext = createContext<CartState | null>(null);
 
-const CART_KEY = "localbaba_cart";
-
-function loadCart(): CartItem[] {
-  try {
-    const data = localStorage.getItem(CART_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch { return []; }
+function toCartItem(entry: CartEntry): CartItem | null {
+  if (!entry.product) return null;
+  return {
+    productId: entry.productId,
+    name: entry.product.name,
+    pricePerPc: entry.product.pricePerPc,
+    qty: entry.quantity,
+    image: entry.product.images[0],
+    moq: entry.product.moq,
+  };
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(loadCart);
+  const { member } = useAuth();
+  const { removeFavorite } = useFavorites();
+  const [items, setItems] = useState<CartItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem(CART_KEY, JSON.stringify(items));
-  }, [items]);
-
-  const addItem = useCallback((item: CartItem) => {
-    setItems(prev => {
-      const existing = prev.find(i => i.productId === item.productId);
-      if (existing) {
-        return prev.map(i => i.productId === item.productId ? { ...i, qty: i.qty + item.qty } : i);
-      }
-      return [...prev, item];
+    if (!member?.id) {
+      setItems([]);
+      return;
+    }
+    let cancelled = false;
+    fetchCart().then(cart => {
+      if (!cancelled) setItems(cart.map(toCartItem).filter((i): i is CartItem => i !== null));
     });
-    setIsOpen(true);
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [member?.id]);
+
+  const addItem = useCallback(
+    (item: CartItem) => {
+      setItems(prev => {
+        const existing = prev.find(i => i.productId === item.productId);
+        const nextQty = existing ? existing.qty + item.qty : item.qty;
+        void apiAddToCart(item.productId, nextQty);
+        if (existing) {
+          return prev.map(i => (i.productId === item.productId ? { ...i, qty: nextQty } : i));
+        }
+        return [...prev, item];
+      });
+      // Adding a favorited product to the cart removes it from favorites
+      // (the backend does this too — kept in sync here so the UI updates immediately).
+      removeFavorite(item.productId);
+      setIsOpen(true);
+    },
+    [removeFavorite],
+  );
 
   const removeItem = useCallback((productId: string) => {
     setItems(prev => prev.filter(i => i.productId !== productId));
+    void apiRemoveFromCart(productId);
   }, []);
 
   const updateQty = useCallback((productId: string, qty: number) => {
-    setItems(prev => prev.map(i => i.productId === productId ? { ...i, qty: Math.max(i.moq, qty) } : i));
+    setItems(prev =>
+      prev.map(i => {
+        if (i.productId !== productId) return i;
+        const clamped = Math.max(i.moq, qty);
+        void apiUpdateCartQty(productId, clamped);
+        return { ...i, qty: clamped };
+      }),
+    );
   }, []);
 
-  const clearCart = useCallback(() => setItems([]), []);
+  const clearCart = useCallback(() => {
+    setItems([]);
+    void apiClearCart();
+  }, []);
   const openCart = useCallback(() => setIsOpen(true), []);
   const closeCart = useCallback(() => setIsOpen(false), []);
 

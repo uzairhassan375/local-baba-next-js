@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { useOrders, ManualInvoice } from "@/contexts/OrdersContext";
 import { Order, Product, applications as mockApplications, currentMember } from "@/data/mockData";
 import { useMergedCatalog } from "@/hooks/useMergedCatalog";
 import { fetchMembershipApplications } from "@/lib/supabase/applicationsApi";
+import { fetchInvoiceSettings, updateInvoiceSettings, uploadInvoiceLogo } from "@/lib/api/invoiceSettingsApi";
 import { toast } from "sonner";
 import {
   Search,
@@ -30,6 +31,8 @@ import {
   Check,
   Filter,
   Calendar,
+  Image as ImageIcon,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +54,93 @@ export default function AdminInvoicesPage() {
   const { orders, manualInvoices, updateOrder, addOrder, addManualInvoice, deleteManualInvoice, isLoadingOrders, refreshOrdersFromDb } = useOrders();
   const [activeMode, setActiveMode] = useState<Mode>("auto");
   const [autoSubTab, setAutoSubTab] = useState<AutoSubTab>("search_edit");
+
+  // -------------------------------------------------------------
+  // INVOICE BRANDING (company name + logo shown on every invoice preview
+  // and the actual printed document) — saved via the backend to Supabase.
+  // -------------------------------------------------------------
+  const DEFAULT_INVOICE_COMPANY_NAME = "Local Baba";
+
+  const [companyName, setCompanyName] = useState(DEFAULT_INVOICE_COMPANY_NAME);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [brandingNameDraft, setBrandingNameDraft] = useState(DEFAULT_INVOICE_COMPANY_NAME);
+  const [savingBrandingName, setSavingBrandingName] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [resettingBranding, setResettingBranding] = useState(false);
+
+  useEffect(() => {
+    fetchInvoiceSettings().then(settings => {
+      setCompanyName(settings.companyName);
+      setLogoUrl(settings.logoUrl);
+      setBrandingNameDraft(settings.companyName);
+    });
+  }, []);
+
+  // The public marketing tagline set in the root layout's <title> has no
+  // place on an admin screen — show the invoice company name in the browser
+  // tab instead while here, and restore the original title on navigating away.
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = `${companyName} — Admin Invoices`;
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [companyName]);
+
+  const displayLogo = logoUrl || "/Localbaba-logo.png";
+
+  const handleSaveBrandingName = async () => {
+    const trimmed = brandingNameDraft.trim();
+    if (!trimmed) {
+      toast.error("Company name can't be empty.");
+      return;
+    }
+    setSavingBrandingName(true);
+    const res = await updateInvoiceSettings({ companyName: trimmed });
+    if (res.success && res.settings) {
+      setCompanyName(res.settings.companyName);
+      toast.success("Invoice company name updated.");
+    } else {
+      toast.error(res.error || "Failed to update company name.");
+    }
+    setSavingBrandingName(false);
+  };
+
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingLogo(true);
+    const upload = await uploadInvoiceLogo(file);
+    if (!upload.success || !upload.url) {
+      toast.error(upload.error || "Failed to upload logo.");
+      setUploadingLogo(false);
+      return;
+    }
+    const res = await updateInvoiceSettings({ logoUrl: upload.url });
+    if (res.success && res.settings) {
+      setLogoUrl(res.settings.logoUrl);
+      toast.success("Invoice logo updated.");
+    } else {
+      toast.error(res.error || "Failed to save logo.");
+    }
+    setUploadingLogo(false);
+  };
+
+  /** Reverts the invoice company name & logo back to the original "Local Baba" defaults. */
+  const handleResetBranding = async () => {
+    setResettingBranding(true);
+    const res = await updateInvoiceSettings({ companyName: DEFAULT_INVOICE_COMPANY_NAME, logoUrl: null });
+    if (res.success && res.settings) {
+      setCompanyName(res.settings.companyName);
+      setLogoUrl(res.settings.logoUrl);
+      setBrandingNameDraft(res.settings.companyName);
+      toast.success("Invoice branding reset to Local Baba.");
+    } else {
+      toast.error(res.error || "Failed to reset invoice branding.");
+    }
+    setResettingBranding(false);
+  };
 
   // Load Database Products and Users
   const { merged: dbProducts = [] } = useMergedCatalog();
@@ -1201,10 +1291,10 @@ export default function AdminInvoicesPage() {
                       <div id="invoice-printable" className="bg-white text-black p-6 sm:p-8 rounded-xl border border-gray-300 shadow-md space-y-6">
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between border-b border-gray-300 pb-5 gap-4">
                           <div className="flex items-center gap-3">
-                            <img src="/Localbaba-logo.png" alt="Local Baba Logo" className="h-10 w-auto object-contain shrink-0" />
+                            <img src={displayLogo} alt={`${companyName} Logo`} className="h-10 w-auto object-contain shrink-0" />
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="font-heading font-extrabold text-xl tracking-tight text-black">LOCAL BABA</span>
+                                <span className="font-heading font-extrabold text-xl tracking-tight text-black">{companyName}</span>
                                 <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-bold uppercase tracking-wider">Wholesale</span>
                               </div>
                               <p className="text-[11px] text-gray-600">B2B Sourcing Platform for Pakistani Sellers</p>
@@ -1433,9 +1523,12 @@ export default function AdminInvoicesPage() {
 
                   <div className="bg-white text-black p-6 rounded-xl border border-gray-300 shadow-md space-y-4 text-xs">
                     <div className="flex justify-between items-start border-b border-gray-300 pb-3">
-                      <div>
-                        <p className="font-heading font-bold text-xl text-black">LOCAL BABA</p>
-                        <p className="text-[10px] text-gray-500">Auto Database Order Invoice</p>
+                      <div className="flex items-center gap-3">
+                        <img src={displayLogo} alt={`${companyName} Logo`} className="h-9 w-auto object-contain shrink-0" />
+                        <div>
+                          <p className="font-heading font-bold text-xl text-black">{companyName}</p>
+                          <p className="text-[10px] text-gray-500">Auto Database Order Invoice</p>
+                        </div>
                       </div>
                       <div className="text-right">
                         <p className="font-mono font-bold text-gray-900">#LB-NEW</p>
@@ -1488,7 +1581,51 @@ export default function AdminInvoicesPage() {
         {/* MODE 2: MANUAL INVOICE (COMPLETELY EMPTY DATA ON START)  */}
         {/* ========================================================= */}
         {activeMode === "manual" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="space-y-6">
+            {/* Invoice Branding — company name & logo shown on every invoice preview/print */}
+            <div className="bg-card border border-border p-4 rounded-xl shadow-xs flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="w-14 h-14 rounded-lg border border-border bg-white flex items-center justify-center overflow-hidden shrink-0">
+                  <img src={displayLogo} alt="Invoice logo" className="max-w-full max-h-full object-contain" />
+                </div>
+                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-xs font-semibold cursor-pointer hover:bg-muted transition-colors">
+                  <ImageIcon size={14} />
+                  {uploadingLogo ? "Uploading..." : "Change Logo"}
+                  <input type="file" accept="image/*" className="hidden" disabled={uploadingLogo} onChange={e => void handleLogoFileChange(e)} />
+                </label>
+              </div>
+
+              <div className="flex items-end gap-2 flex-1 min-w-[240px]">
+                <div className="flex-1">
+                  <Label className="text-xs font-medium block mb-1">Invoice Company Name</Label>
+                  <Input
+                    value={brandingNameDraft}
+                    onChange={e => setBrandingNameDraft(e.target.value)}
+                    placeholder="Company name shown on invoices"
+                    className="h-9 text-xs bg-background"
+                  />
+                </div>
+                <Button
+                  onClick={() => void handleSaveBrandingName()}
+                  disabled={savingBrandingName || brandingNameDraft.trim() === companyName}
+                  size="sm"
+                  className="h-9 gap-1.5 bg-primary text-primary-foreground font-semibold shrink-0"
+                >
+                  <Save size={14} /> {savingBrandingName ? "Saving..." : "Save"}
+                </Button>
+                <Button
+                  onClick={() => void handleResetBranding()}
+                  disabled={resettingBranding || (companyName === DEFAULT_INVOICE_COMPANY_NAME && !logoUrl)}
+                  variant="outline"
+                  size="sm"
+                  className="h-9 gap-1.5 font-semibold shrink-0"
+                >
+                  <RotateCcw size={14} /> {resettingBranding ? "Resetting..." : "Reset"}
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left 7 Cols: Manual Invoice Creator Form */}
             <div className="lg:col-span-7 space-y-5 bg-card border border-border p-5 sm:p-6 rounded-xl shadow-xs">
               <div className="flex items-center justify-between border-b border-border pb-3">
@@ -1813,9 +1950,9 @@ export default function AdminInvoicesPage() {
               <div id="manual-invoice-printable" className="bg-white text-black p-6 rounded-xl border border-gray-300 shadow-md space-y-4 text-xs">
                 <div className="flex justify-between items-start border-b border-gray-300 pb-3">
                   <div className="flex items-center gap-3">
-                    <img src="/Localbaba-logo.png" alt="Local Baba Logo" className="h-9 w-auto object-contain shrink-0" />
+                    <img src={displayLogo} alt={`${companyName} Logo`} className="h-9 w-auto object-contain shrink-0" />
                     <div>
-                      <p className="font-heading font-bold text-lg text-black">LOCAL BABA</p>
+                      <p className="font-heading font-bold text-lg text-black">{companyName}</p>
                       <p className="text-[10px] text-gray-500">Custom Manual Billing</p>
                     </div>
                   </div>
@@ -1869,6 +2006,7 @@ export default function AdminInvoicesPage() {
                 </div>
               </div>
             </div>
+          </div>
           </div>
         )}
 
@@ -2091,12 +2229,10 @@ export default function AdminInvoicesPage() {
             {/* Header */}
             <div className="flex justify-between items-start border-b border-gray-900 pb-5">
               <div className="flex items-start gap-4">
-                <img src="/Localbaba-logo.png" alt="Local Baba Logo" className="h-14 w-auto object-contain shrink-0" />
+                <img src={displayLogo} alt={`${companyName} Logo`} className="h-14 w-auto object-contain shrink-0" />
                 <div>
-                  <h1 className="font-bold text-2xl text-black tracking-tight font-heading">LOCAL BABA</h1>
+                  <h1 className="font-bold text-2xl text-black tracking-tight font-heading">{companyName}</h1>
                   <p className="text-xs font-semibold text-gray-700">Wholesale B2B Sourcing Platform for Pakistani Retailers</p>
-                  <p className="text-[11px] text-gray-500">Hall Road / Shah Alam Market, Lahore, Pakistan</p>
-                  <p className="text-[11px] text-gray-500 font-mono">Support: support@localbaba.pk | +92 300 0000000</p>
                 </div>
               </div>
               <div className="text-right">
@@ -2183,7 +2319,7 @@ export default function AdminInvoicesPage() {
 
             {/* Footer */}
             <div className="border-t border-gray-300 pt-6 text-center text-[10px] text-gray-500 space-y-1">
-              <p className="font-bold text-gray-700">Thank you for sourcing with Local Baba Wholesale!</p>
+              <p className="font-bold text-gray-700">Thank you for sourcing with {companyName}!</p>
               <p>Computer-generated invoice document. Valid without physical signature.</p>
             </div>
           </div>

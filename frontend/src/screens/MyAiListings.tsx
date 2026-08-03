@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Sparkles, ShoppingBag, Send, Trash2, CheckCircle2, ExternalLink, RefreshCw, Layers, Grid3X3, Lock, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,6 +18,7 @@ import { createShopifyProduct } from "@/lib/api/shopifyApi";
 
 export default function MyAiListingsScreen() {
   const { member, isSubscribed, subscriptionStatus: subStatus, subscriptionLoading, refreshSubscription } = useAuth();
+  const router = useRouter();
   const [listings, setListings] = useState<SavedAiListing[]>([]);
   const [postingId, setPostingId] = useState<string | null>(null);
   const [subModalOpen, setSubModalOpen] = useState(false);
@@ -213,7 +215,10 @@ export default function MyAiListingsScreen() {
             listings.map(item => (
               <div
                 key={item.id}
-                className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-card transition-shadow flex flex-col justify-between"
+                onClick={() => router.push(`/my-ai-listings/${item.id}`)}
+                role="button"
+                tabIndex={0}
+                className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-card transition-shadow flex flex-col justify-between cursor-pointer"
               >
                 <div>
                   {/* Product Image Preview */}
@@ -230,7 +235,10 @@ export default function MyAiListingsScreen() {
                       </span>
                     )}
                     <button
-                      onClick={() => handleDelete(item.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(item.id);
+                      }}
                       className="absolute top-3 right-3 p-2 rounded-full bg-black/60 text-white hover:bg-rose-600 transition-colors"
                       title="Remove Listing"
                     >
@@ -247,7 +255,7 @@ export default function MyAiListingsScreen() {
                       <span className="text-xs font-semibold text-primary">Rs. {item.pricePerPc} / pc</span>
                     </div>
 
-                    <h3 className="font-heading font-bold text-base line-clamp-2 text-foreground">
+                    <h3 className="font-heading font-bold text-base line-clamp-2 text-foreground hover:text-primary transition-colors">
                       {item.title}
                     </h3>
 
@@ -260,7 +268,10 @@ export default function MyAiListingsScreen() {
                 {/* Bottom Action Footer */}
                 <div className="p-4 border-t border-border bg-muted/20">
                   <button
-                    onClick={() => handlePostToShopify(item)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePostToShopify(item);
+                    }}
                     disabled={postingId === item.id}
                     className={`w-full h-10 rounded-xl font-bold text-xs inline-flex items-center justify-center gap-2 transition-all shadow-sm ${
                       item.postedToShopify

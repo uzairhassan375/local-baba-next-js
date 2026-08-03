@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Grid3X3, Package, MapPin, Users, User, MessageCircle, Heart, Bell, Layers, Sparkles, Lock } from "lucide-react";
+import { LayoutDashboard, Grid3X3, Package, MapPin, Users, User, MessageCircle, Heart, Bell, Layers, Sparkles, Lock, Receipt } from "lucide-react";
 import { CartSidebar } from "@/components/CartSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -11,6 +11,7 @@ const sidebarLinks = [
   { label: "Track Order", href: "/track-order", icon: MapPin },
   { label: "Favourites", href: "/favourites", icon: Heart },
   { label: "Notifications", href: "/notifications", icon: Bell },
+  { label: "Invoice", href: "/invoice", icon: Receipt, free: true },
   { label: "My AI Listing", href: "/my-ai-listings", icon: Sparkles, locked: true },
   { label: "Integrations", href: "/integrations", icon: Layers, locked: true },
   { label: "Community", href: "/community", icon: Users },
@@ -36,6 +37,7 @@ export function MemberLayout({ children }: { children: React.ReactNode }) {
               (l.href === "/notifications" && pathname?.startsWith("/notifications")) ||
               (l.href === "/my-ai-listings" && pathname?.startsWith("/my-ai-listings")) ||
               (l.href === "/integrations" && pathname?.startsWith("/integrations")) ||
+              (l.href === "/invoice" && pathname?.startsWith("/invoice")) ||
               (l.href === "/profile" && pathname?.startsWith("/profile")) ||
               (l.href === "/community" && pathname?.startsWith("/community"));
 
@@ -58,6 +60,11 @@ export function MemberLayout({ children }: { children: React.ReactNode }) {
                 {showLock && (
                   <span title="Subscription ($10) required">
                     <Lock size={14} className="text-amber-500 shrink-0" />
+                  </span>
+                )}
+                {l.free && (
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 shrink-0">
+                    Free
                   </span>
                 )}
               </Link>

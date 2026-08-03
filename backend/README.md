@@ -120,6 +120,11 @@ Real per-user rows in `member_notifications`, created server-side by the orders/
 - `PATCH /api/notifications/<id>/read` — auth required.
 - `DELETE /api/notifications/<id>` — auth required, permanent delete.
 
+### Invoice branding (`app/api/invoice_settings/`)
+Singleton row — the company name/logo shown on admin-printed invoices (`AdminInvoices.tsx`). The logo image itself is uploaded separately via the existing admin-only `/api/upload-media` Next.js route (Bunny CDN); only the resulting URL is saved here.
+- `GET /api/invoice-settings` — admin only.
+- `PATCH /api/invoice-settings` — admin only. Body: `{companyName?, logoUrl?}`.
+
 ## Mobile app integration
 
 The mobile app doesn't need its own Supabase wiring for data — only for

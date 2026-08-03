@@ -66,7 +66,7 @@ export function ProductCard({ product, deliveryPrice }: Props) {
 
   return (
     <div className="bg-card rounded-card border border-border overflow-hidden group hover:border-primary/50 transition-all shadow-card flex flex-col justify-between">
-      <div>
+      <Link href={`/product/${product.slug}`} className="block">
         <div className="relative">
           <ProductMedia
             src={product.images[0]}
@@ -81,7 +81,10 @@ export function ProductCard({ product, deliveryPrice }: Props) {
             </span>
           )}
           <button
-            onClick={() => toggleFavorite(product.id)}
+            onClick={(e) => {
+              e.preventDefault();
+              toggleFavorite(product.id);
+            }}
             className="absolute top-3 right-3 w-8 h-8 rounded-full bg-card/80 backdrop-blur-sm border border-border flex items-center justify-center text-foreground hover:text-danger transition-colors"
           >
             <Heart size={16} fill={wishlisted ? "currentColor" : "none"} className={wishlisted ? "text-danger" : ""} />
@@ -92,11 +95,9 @@ export function ProductCard({ product, deliveryPrice }: Props) {
           <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
             {product.category}
           </span>
-          <Link href={`/product/${product.slug}`}>
-            <h3 className="font-heading font-semibold text-base line-clamp-2 hover:text-primary transition-colors">
-              {product.name}
-            </h3>
-          </Link>
+          <h3 className="font-heading font-semibold text-base line-clamp-2 hover:text-primary transition-colors">
+            {product.name}
+          </h3>
           <div className="flex items-baseline gap-2">
             <span className="font-heading font-bold text-lg text-primary">Rs. {product.pricePerPc}</span>
             <span className="text-xs text-muted-foreground">/ pc</span>
@@ -108,7 +109,7 @@ export function ProductCard({ product, deliveryPrice }: Props) {
           </div>
           <p className="text-xs text-muted-foreground">MOQ: {product.moq} pcs</p>
         </div>
-      </div>
+      </Link>
 
       <div className="p-4 pt-0 space-y-3">
         {!isSoldOut ? (

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Grid3X3, Package, MapPin, Users, User, MessageCircle, Heart, Bell, Layers, Sparkles, Lock, Receipt } from "lucide-react";
+import { LayoutDashboard, Grid3X3, Package, MapPin, Users, User, MessageCircle, Heart, Bell, Layers, Sparkles, Lock, Receipt, Calculator } from "lucide-react";
 import { CartSidebar } from "@/components/CartSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -12,6 +12,7 @@ const sidebarLinks = [
   { label: "Favourites", href: "/favourites", icon: Heart },
   { label: "Notifications", href: "/notifications", icon: Bell },
   { label: "Invoice", href: "/invoice", icon: Receipt, free: true },
+  { label: "Financial Calculator", href: "/financial-calculator", icon: Calculator, free: true },
   { label: "My AI Listing", href: "/my-ai-listings", icon: Sparkles, locked: true },
   { label: "Integrations", href: "/integrations", icon: Layers, locked: true },
   { label: "Community", href: "/community", icon: Users },
@@ -38,6 +39,7 @@ export function MemberLayout({ children }: { children: React.ReactNode }) {
               (l.href === "/my-ai-listings" && pathname?.startsWith("/my-ai-listings")) ||
               (l.href === "/integrations" && pathname?.startsWith("/integrations")) ||
               (l.href === "/invoice" && pathname?.startsWith("/invoice")) ||
+              (l.href === "/financial-calculator" && pathname?.startsWith("/financial-calculator")) ||
               (l.href === "/profile" && pathname?.startsWith("/profile")) ||
               (l.href === "/community" && pathname?.startsWith("/community"));
 

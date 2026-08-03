@@ -2,13 +2,19 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Trash2, Printer, Save, History, Receipt } from "lucide-react";
+import { Plus, Trash2, Printer, Save, History, Receipt, ImagePlus, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchInvoiceSettings, InvoiceSettings } from "@/lib/api/invoiceSettingsApi";
+import {
+  fetchInvoiceSettings,
+  updateInvoiceSettings,
+  uploadInvoiceLogo,
+  resetInvoiceSettings,
+  InvoiceSettings,
+} from "@/lib/api/invoiceSettingsApi";
 import { createManualInvoice, ManualInvoiceItem } from "@/lib/api/manualInvoicesApi";
 
 type FormItem = { description: string; qty: number; rate: number };
@@ -33,12 +39,71 @@ export default function MemberInvoicePage() {
   const [settings, setSettings] = useState<InvoiceSettings>({ companyName: "Local Baba", logoUrl: null });
   const [previewInvoiceNumber, setPreviewInvoiceNumber] = useState("");
 
+  const [brandingNameDraft, setBrandingNameDraft] = useState("");
+  const [savingBrandingName, setSavingBrandingName] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [resettingBranding, setResettingBranding] = useState(false);
+
   const generatePreviewInvoiceNumber = () => `INV-LB-${Math.floor(100000 + Math.random() * 900000)}`;
 
   useEffect(() => {
-    fetchInvoiceSettings().then(setSettings);
+    fetchInvoiceSettings().then(s => {
+      setSettings(s);
+      setBrandingNameDraft(s.companyName);
+    });
     setPreviewInvoiceNumber(generatePreviewInvoiceNumber());
   }, []);
+
+  const handleSaveBrandingName = async () => {
+    const trimmed = brandingNameDraft.trim();
+    if (!trimmed) {
+      toast.error("Company name can't be empty.");
+      return;
+    }
+    setSavingBrandingName(true);
+    const res = await updateInvoiceSettings({ companyName: trimmed });
+    if (res.success && res.settings) {
+      setSettings(res.settings);
+      toast.success("Your invoice branding was updated.");
+    } else {
+      toast.error(res.error || "Failed to update company name.");
+    }
+    setSavingBrandingName(false);
+  };
+
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingLogo(true);
+    const upload = await uploadInvoiceLogo(file);
+    if (!upload.success || !upload.url) {
+      toast.error(upload.error || "Failed to upload logo.");
+      setUploadingLogo(false);
+      return;
+    }
+    const res = await updateInvoiceSettings({ logoUrl: upload.url });
+    if (res.success && res.settings) {
+      setSettings(res.settings);
+      toast.success("Your invoice logo was updated.");
+    } else {
+      toast.error(res.error || "Failed to save logo.");
+    }
+    setUploadingLogo(false);
+  };
+
+  const handleResetBranding = async () => {
+    setResettingBranding(true);
+    const res = await resetInvoiceSettings();
+    if (res.success && res.settings) {
+      setSettings(res.settings);
+      setBrandingNameDraft(res.settings.companyName);
+      toast.success("Branding reset to the platform default.");
+    } else {
+      toast.error(res.error || "Failed to reset branding.");
+    }
+    setResettingBranding(false);
+  };
 
   const subtotal = useMemo(
     () => form.items.reduce((sum, it) => sum + (Number(it.qty) || 0) * (Number(it.rate) || 0), 0),
@@ -65,7 +130,15 @@ export default function MemberInvoicePage() {
     setForm(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== index) }));
   };
 
-  const handlePrint = () => window.print();
+  const handlePrint = async () => {
+    // Pull the latest saved branding right before printing — component
+    // state can otherwise lag behind (e.g. a save that raced the initial
+    // fetch, or a cached client-side navigation), which would print
+    // outdated logo/company name.
+    const latest = await fetchInvoiceSettings();
+    setSettings(latest);
+    window.print();
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,6 +209,53 @@ export default function MemberInvoicePage() {
           <History size={16} />
           Invoice History
         </Link>
+      </div>
+
+      {/* Branding editor */}
+      <div className="print:hidden bg-card border border-border rounded-card p-5 flex flex-col md:flex-row md:items-center gap-4">
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="w-14 h-14 rounded-xl border border-border bg-background flex items-center justify-center overflow-hidden shrink-0">
+            {settings.logoUrl ? (
+              <img src={settings.logoUrl} alt="Your invoice logo" className="w-full h-full object-contain" />
+            ) : (
+              <ImagePlus size={20} className="text-muted-foreground" />
+            )}
+          </div>
+          <label className="text-xs font-bold px-3 py-2 rounded-lg border border-border hover:border-primary/50 cursor-pointer transition-colors">
+            {uploadingLogo ? "Uploading…" : "Change Logo"}
+            <input type="file" accept="image/*" className="hidden" disabled={uploadingLogo} onChange={e => void handleLogoFileChange(e)} />
+          </label>
+        </div>
+
+        <div className="flex-1 flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
+          <div className="flex-1">
+            <Label className="mb-1 block text-xs">Company name on your invoices</Label>
+            <Input
+              value={brandingNameDraft}
+              onChange={e => setBrandingNameDraft(e.target.value)}
+              className="h-9 bg-background"
+            />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => void handleSaveBrandingName()}
+            disabled={savingBrandingName || brandingNameDraft.trim() === settings.companyName}
+            className="h-9"
+          >
+            {savingBrandingName ? "Saving…" : "Save"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => void handleResetBranding()}
+            disabled={resettingBranding || !settings.isCustom}
+            className="h-9 gap-1.5"
+          >
+            <RotateCcw size={14} /> {resettingBranding ? "Resetting…" : "Reset"}
+          </Button>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6 print:hidden">

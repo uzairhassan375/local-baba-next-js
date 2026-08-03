@@ -44,7 +44,13 @@ export default function MemberInvoiceDetailPage() {
           <ChevronLeft size={14} /> Back to Invoice History
         </Link>
         <button
-          onClick={() => window.print()}
+          onClick={async () => {
+            // Same freshness guarantee as the create page — always print
+            // whatever branding is currently saved, not whatever happened
+            // to be loaded when this page first mounted.
+            setSettings(await fetchInvoiceSettings());
+            window.print();
+          }}
           className="inline-flex items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
         >
           <Printer size={16} /> Print

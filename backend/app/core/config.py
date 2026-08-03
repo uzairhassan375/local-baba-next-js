@@ -23,6 +23,14 @@ class Config:
     SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "")
     ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "")
 
+    # Same Bunny Storage account the website's /api/upload-media route uses —
+    # copy the same three values from frontend/.env.local (and Render env
+    # vars) here so member-uploaded invoice logos go through this backend
+    # instead of the website directly.
+    BUNNY_STORAGE_API_KEY = os.environ.get("BUNNY_STORAGE_API_KEY", "")
+    BUNNY_STORAGE_API_BASE = os.environ.get("BUNNY_STORAGE_API_BASE", "")
+    BUNNY_STORAGE_CDN_BASE = os.environ.get("BUNNY_STORAGE_CDN_BASE", "")
+
     FRONTEND_ORIGINS = _split_origins(
         os.environ.get(
             "FRONTEND_ORIGINS",

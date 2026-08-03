@@ -15,6 +15,7 @@ def register_blueprints(app: Flask) -> None:
     from .cart import cart_bp
     from .notifications import notifications_bp
     from .invoice_settings import invoice_settings_bp
+    from .manual_invoices import manual_invoices_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(shopify_bp, url_prefix="/api/shopify")
@@ -29,3 +30,4 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(cart_bp, url_prefix="/api/cart")
     app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
     app.register_blueprint(invoice_settings_bp, url_prefix="/api/invoice-settings")
+    app.register_blueprint(manual_invoices_bp, url_prefix="/api/manual-invoices")

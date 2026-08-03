@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 
-from ...core.auth import require_admin
+from ...core.auth import require_admin, require_auth
 from ...core.supabase_client import get_admin_client
 
 invoice_settings_bp = Blueprint("invoice_settings", __name__)
@@ -20,7 +20,7 @@ def _map_row(row: dict | None) -> dict:
 
 
 @invoice_settings_bp.get("")
-@require_admin
+@require_auth
 def get_settings():
     db = get_admin_client()
     res = (

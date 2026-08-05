@@ -13,6 +13,17 @@ export interface CartEntry {
   updatedAt: string;
 }
 
+export interface AdminCartMember {
+  authUserId: string;
+  quantity: number;
+  addedAt: string;
+  updatedAt: string;
+  name: string | null;
+  email: string | null;
+  whatsapp: string | null;
+  city: string | null;
+}
+
 async function authHeaders(): Promise<Record<string, string>> {
   const { data } = await createClient().auth.getSession();
   const token = data.session?.access_token;
@@ -101,6 +112,38 @@ export async function removeFromCart(productId: string): Promise<{ success: bool
   } catch (err: any) {
     return { success: false, error: err?.message || "Could not reach backend server." };
   }
+}
+
+/** Admin-only — how many members have each product in their cart, keyed by productId. */
+export async function fetchAdminCartCounts(): Promise<Record<string, number>> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_URL}/api/cart/admin/counts`, {
+      headers: { "Content-Type": "application/json", ...headers },
+      cache: "no-store",
+    });
+    const data = await safeJson(res);
+    if (res.ok && data?.success) return data.counts as Record<string, number>;
+  } catch (err) {
+    console.warn("[cartApi] fetchAdminCartCounts failed:", err);
+  }
+  return {};
+}
+
+/** Admin-only — members who currently have `productId` in their cart. */
+export async function fetchAdminCartMembers(productId: string): Promise<AdminCartMember[]> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_URL}/api/cart/admin/product/${productId}`, {
+      headers: { "Content-Type": "application/json", ...headers },
+      cache: "no-store",
+    });
+    const data = await safeJson(res);
+    if (res.ok && data?.success) return data.members as AdminCartMember[];
+  } catch (err) {
+    console.warn("[cartApi] fetchAdminCartMembers failed:", err);
+  }
+  return [];
 }
 
 export async function clearCart(): Promise<{ success: boolean; error?: string }> {

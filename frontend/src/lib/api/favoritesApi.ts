@@ -12,6 +12,15 @@ export interface FavoriteEntry {
   createdAt: string;
 }
 
+export interface AdminFavoriteMember {
+  authUserId: string;
+  favoritedAt: string;
+  name: string | null;
+  email: string | null;
+  whatsapp: string | null;
+  city: string | null;
+}
+
 async function authHeaders(): Promise<Record<string, string>> {
   const { data } = await createClient().auth.getSession();
   const token = data.session?.access_token;
@@ -63,6 +72,38 @@ export async function addFavorite(productId: string): Promise<{ success: boolean
   } catch (err: any) {
     return { success: false, error: err?.message || "Could not reach backend server." };
   }
+}
+
+/** Admin-only — how many members have each product favorited, keyed by productId. */
+export async function fetchAdminFavoriteCounts(): Promise<Record<string, number>> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_URL}/api/favorites/admin/counts`, {
+      headers: { "Content-Type": "application/json", ...headers },
+      cache: "no-store",
+    });
+    const data = await safeJson(res);
+    if (res.ok && data?.success) return data.counts as Record<string, number>;
+  } catch (err) {
+    console.warn("[favoritesApi] fetchAdminFavoriteCounts failed:", err);
+  }
+  return {};
+}
+
+/** Admin-only — members who currently have `productId` favorited. */
+export async function fetchAdminFavoriteMembers(productId: string): Promise<AdminFavoriteMember[]> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_URL}/api/favorites/admin/product/${productId}`, {
+      headers: { "Content-Type": "application/json", ...headers },
+      cache: "no-store",
+    });
+    const data = await safeJson(res);
+    if (res.ok && data?.success) return data.members as AdminFavoriteMember[];
+  } catch (err) {
+    console.warn("[favoritesApi] fetchAdminFavoriteMembers failed:", err);
+  }
+  return [];
 }
 
 export async function removeFavorite(productId: string): Promise<{ success: boolean; error?: string }> {

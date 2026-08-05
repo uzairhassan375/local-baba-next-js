@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Users, Package, ShoppingCart, UserCheck, MessageSquare, LogOut, Table2, LayoutTemplate, Receipt, CreditCard } from "lucide-react";
+import { LayoutDashboard, Users, Package, ShoppingCart, UserCheck, MessageSquare, LogOut, Table2, LayoutTemplate, Receipt, CreditCard, BarChart3, Tag } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
@@ -9,6 +9,8 @@ const adminLinks = [
   { label: "Applications", href: "/admin/applications", icon: UserCheck },
   { label: "Subscriptions", href: "/admin/subscriptions", icon: CreditCard },
   { label: "Products", href: "/admin/products", icon: Package },
+  { label: "Cart & Fav Stats", href: "/admin/cart-fav-stats", icon: BarChart3 },
+  { label: "Promo Codes", href: "/admin/promo-codes", icon: Tag },
   { label: "Bulk price & MOQ", href: "/admin/products/bulk", icon: Table2 },
   { label: "Landing page", href: "/admin/landing-products", icon: LayoutTemplate },
   { label: "China delivery", href: "/admin/china-delivery", icon: Package },

@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, X, ImagePlus, ChevronUp, ChevronDown, Star, FileSpreadsheet, LayoutTemplate, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, X, ImagePlus, ChevronUp, ChevronDown, Star, FileSpreadsheet, LayoutTemplate, Sparkles, ShoppingCart, Heart } from "lucide-react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { ProductMedia } from "@/components/ProductMedia";
+import { ProductMembersDialog } from "@/screens/admin/ProductMembersDialog";
 import type { Product } from "@/data/mockData";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -128,6 +129,7 @@ export default function AdminProductsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [membersDialog, setMembersDialog] = useState<{ product: Product; kind: "cart" | "favorite" } | null>(null);
 
   const pendingPreviewUrls = useMemo(() => pendingFiles.map(f => URL.createObjectURL(f)), [pendingFiles]);
   useEffect(() => {
@@ -574,6 +576,24 @@ export default function AdminProductsPage() {
                         </span>
                       </td>
                       <td className="p-3 text-right space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          title="See members with this in their cart"
+                          onClick={() => setMembersDialog({ product: p, kind: "cart" })}
+                        >
+                          <ShoppingCart size={14} className="mr-1" /> Cart stats
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          title="See members with this favourited"
+                          onClick={() => setMembersDialog({ product: p, kind: "favorite" })}
+                        >
+                          <Heart size={14} className="mr-1" /> Fav stats
+                        </Button>
                         <Button variant="outline" size="sm" className="h-8" onClick={() => openEdit(p)}>
                           <Pencil size={14} className="mr-1" /> Edit
                         </Button>
@@ -1081,6 +1101,13 @@ export default function AdminProductsPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <ProductMembersDialog
+          product={membersDialog?.product ?? null}
+          kind={membersDialog?.kind ?? "cart"}
+          open={!!membersDialog}
+          onOpenChange={o => !o && setMembersDialog(null)}
+        />
       </div>
     </AdminLayout>
   );

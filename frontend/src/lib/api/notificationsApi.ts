@@ -83,6 +83,29 @@ export async function markAllNotificationsRead(): Promise<{ success: boolean; er
   }
 }
 
+/** Admin-only — sends a message to a specific list of members (e.g. everyone
+ * with a product in their cart/favorites), each as their own notification row. */
+export async function sendAdminMessage(params: {
+  memberIds: string[];
+  title: string;
+  body: string;
+  productId?: string;
+}): Promise<{ success: boolean; sent?: number; error?: string }> {
+  try {
+    const headers = await authHeaders();
+    const res = await fetchWithTimeout(`${BACKEND_URL}/api/notifications/admin/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify(params),
+    });
+    const data = await safeJson(res);
+    if (res.ok && data?.success) return { success: true, sent: data.sent };
+    return { success: false, error: data?.error || "Could not send message." };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Could not reach backend server." };
+  }
+}
+
 export async function deleteNotification(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const headers = await authHeaders();

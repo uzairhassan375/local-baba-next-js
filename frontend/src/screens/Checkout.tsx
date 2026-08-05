@@ -5,8 +5,9 @@ import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useOrders } from "@/contexts/OrdersContext";
-import { Copy, Check, MapPin, Plus, Upload, X, ShieldAlert, CreditCard, Landmark, Smartphone } from "lucide-react";
+import { Copy, Check, MapPin, Plus, Upload, X, ShieldAlert, CreditCard, Landmark, Smartphone, Tag, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { applyPromoCode, type AppliedPromo } from "@/lib/api/promoCodesApi";
 
 const cities = ["Lahore", "Karachi", "Islamabad", "Faisalabad", "Rawalpindi", "Multan", "Peshawar", "Quetta", "Other"];
 
@@ -36,6 +37,56 @@ export default function CheckoutPage() {
   const [paymentScreenshot, setPaymentScreenshot] = useState<string>("");
   const [transactionRef, setTransactionRef] = useState<string>("");
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Promo code — member-scoped codes issued by admin (see Cart & Fav Stats
+  // panel), never a public/global discount.
+  const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
+  const [applyingPromo, setApplyingPromo] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
+
+  const discount = appliedPromo
+    ? Math.min(
+        total,
+        appliedPromo.discountType === "percent"
+          ? Math.round((total * appliedPromo.discountValue) / 100)
+          : appliedPromo.discountValue,
+      )
+    : 0;
+  const discountedTotal = Math.max(0, total - discount);
+
+  const handleApplyPromo = async () => {
+    const code = form.promo.trim();
+    if (!code) {
+      setPromoError("Enter a promo code.");
+      return;
+    }
+    setApplyingPromo(true);
+    setPromoError(null);
+    const result = await applyPromoCode(code);
+    setApplyingPromo(false);
+    if (!result.success || !result.promo) {
+      setPromoError(result.error || "Invalid promo code.");
+      return;
+    }
+    if (result.promo.productId) {
+      const item = items.find(i => i.productId === result.promo!.productId);
+      if (!item) {
+        setPromoError("This code applies to a product that's no longer in your cart.");
+        return;
+      }
+      if (result.promo.minQuantity > 0 && item.qty < result.promo.minQuantity) {
+        setPromoError(`This code needs at least ${result.promo.minQuantity} pcs of ${item.name} in your cart (you have ${item.qty}).`);
+        return;
+      }
+    }
+    setAppliedPromo(result.promo);
+    toast.success(`Promo applied: ${result.promo.discountType === "percent" ? `${result.promo.discountValue}% off` : `Rs ${result.promo.discountValue} off`}`);
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoError(null);
+  };
 
   useEffect(() => {
     if (addressMode !== "saved" || !selectedAddressId) return;
@@ -135,14 +186,16 @@ export default function CheckoutPage() {
           pricePerPc: i.pricePerPc,
           image: i.image,
         })),
-        total,
+        total: discountedTotal,
         paymentMethod,
         paymentStatus: "pending",
         paymentScreenshot,
         transactionRef,
         deliveryAddress: `${form.address}${form.landmark ? `, ${form.landmark}` : ""}, ${form.city}`,
         city: form.city,
-        notes: form.notes,
+        notes: appliedPromo
+          ? `${form.notes ? `${form.notes}\n` : ""}Promo code applied: ${appliedPromo.code} (Rs ${discount.toLocaleString()} off).`
+          : form.notes,
       });
 
       clearCart();
@@ -379,18 +432,62 @@ export default function CheckoutPage() {
                   <span className="font-medium">Rs {(item.pricePerPc * item.qty).toLocaleString()}</span>
                 </div>
               ))}
+
+              <div className="border-t border-border pt-3 space-y-2">
+                <label className="text-sm font-medium block">Promo code</label>
+                {appliedPromo ? (
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-success/10 border border-success/20">
+                    <span className="inline-flex items-center gap-1.5 text-sm font-mono font-medium text-success">
+                      <Tag size={14} />
+                      {appliedPromo.code}
+                    </span>
+                    <button type="button" onClick={handleRemovePromo} className="text-muted-foreground hover:text-destructive">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      value={form.promo}
+                      onChange={e => {
+                        setForm({ ...form, promo: e.target.value });
+                        if (promoError) setPromoError(null);
+                      }}
+                      placeholder="Enter promo code"
+                      className="flex-1 h-10 px-3 rounded-lg border border-border bg-card text-sm focus:border-primary focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleApplyPromo()}
+                      disabled={applyingPromo || !form.promo.trim()}
+                      className="h-10 px-4 rounded-lg border border-primary text-primary text-sm font-medium hover:bg-primary/5 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
+                    >
+                      {applyingPromo && <Loader2 size={14} className="animate-spin" />}
+                      Apply
+                    </button>
+                  </div>
+                )}
+                {promoError && <p className="text-xs text-danger">{promoError}</p>}
+              </div>
+
               <div className="border-t border-border pt-3 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
                   <span>Rs {total.toLocaleString()}</span>
                 </div>
+                {appliedPromo && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-success">Promo discount</span>
+                    <span className="text-success">− Rs {discount.toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Delivery</span>
                   <span className="text-muted-foreground text-xs">Calculated after dispatch</span>
                 </div>
                 <div className="flex justify-between font-heading font-bold text-xl pt-2 border-t border-border">
                   <span>Total</span>
-                  <span>Rs {total.toLocaleString()}</span>
+                  <span>Rs {discountedTotal.toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -415,7 +512,7 @@ export default function CheckoutPage() {
               <span className="text-3xl">📸</span>
               <h3 className="font-heading font-bold text-xl text-foreground">Upload Payment Screenshot</h3>
               <p className="text-xs text-muted-foreground">
-                Transfer <strong>Rs {total.toLocaleString()}</strong> via {paymentMethod === "bank_transfer" ? "Bank Transfer" : "EasyPaisa"} and attach your receipt.
+                Transfer <strong>Rs {discountedTotal.toLocaleString()}</strong> via {paymentMethod === "bank_transfer" ? "Bank Transfer" : "EasyPaisa"} and attach your receipt.
               </p>
             </div>
 

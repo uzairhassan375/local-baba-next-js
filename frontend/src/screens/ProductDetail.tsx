@@ -1,12 +1,16 @@
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Heart, Truck, MessageCircle, Shield, ChevronDown, ChevronUp } from "lucide-react";
+import { Heart, Truck, MessageCircle, Shield, ChevronDown, ChevronUp, Sparkles, Lock } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductMedia } from "@/components/ProductMedia";
 import { CartSidebar } from "@/components/CartSidebar";
+import { SellerAiModal } from "@/components/SellerAiModal";
+import { SubscriptionModal } from "@/components/SubscriptionModal";
+import { checkSubscriptionStatus } from "@/lib/api/subscriptionApi";
 import { useMergedCatalog } from "@/hooks/useMergedCatalog";
 
 export default function ProductDetailPage() {
@@ -17,10 +21,15 @@ export default function ProductDetailPage() {
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
   const wishlisted = isFavorite(product?.id ?? "");
+  const { member } = useAuth();
   const [qty, setQty] = useState(30);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const [mainImage, setMainImage] = useState(0);
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [subModalOpen, setSubModalOpen] = useState(false);
+  const [subStatus, setSubStatus] = useState<"pending" | "active" | "rejected" | "expired" | "none">("none");
 
   useEffect(() => {
     if (!product) return;
@@ -50,6 +59,23 @@ export default function ProductDetailPage() {
     });
   };
 
+  const handleAiClick = async () => {
+    const email = member?.email || "";
+    if (!email) {
+      setSubModalOpen(true);
+      return;
+    }
+
+    const sub = await checkSubscriptionStatus(email);
+    setSubStatus(sub.status);
+
+    if (sub.isSubscribed) {
+      setAiModalOpen(true);
+    } else {
+      setSubModalOpen(true);
+    }
+  };
+
   const badge = isSoldOut ? { label: "SOLD OUT", cls: "bg-muted-foreground" }
     : product.tags.includes("hot") ? { label: "HOT", cls: "bg-primary" }
     : product.tags.includes("new") ? { label: "NEW", cls: "bg-success" }
@@ -57,7 +83,6 @@ export default function ProductDetailPage() {
     : null;
 
   const accordionSections = [
-    { key: "desc", title: "Full description", content: product.description },
     { key: "specs", title: "Specifications", content: product.specs.map(s => `${s.label}: ${s.value}`).join("\n") },
     { key: "shipping", title: "Shipping & returns", content: "All orders dispatched within 48 hours. Free tracking via WhatsApp. Returns accepted within 7 days if product is damaged or defective. Contact WhatsApp support for return requests." },
     { key: "faq", title: "FAQ", content: "MOQ: 30 pieces per SKU\nPayment: Bank transfer, EasyPaisa/JazzCash, COD (select cities)\nDelivery: 48-hour dispatch, 2-5 day delivery depending on city\nTracking: Automatic WhatsApp updates" },
@@ -94,25 +119,65 @@ export default function ProductDetailPage() {
         <div className="space-y-6">
           <div>
             <h1 className="font-heading font-bold text-2xl md:text-[28px] leading-tight">{product.name}</h1>
-            <p className="text-sm text-muted-foreground mt-2">
-              <span className="text-foreground font-medium">SKU</span>{" "}
-              <span className="font-mono tracking-wide text-foreground/90">{product.sku}</span>
-            </p>
-            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
-              <span className="w-2 h-2 rounded-full bg-primary" /> Direct import · No middlemen
-            </span>
-            <p className="text-muted-foreground text-[15px] mt-3 leading-relaxed">{product.description}</p>
+            <div className="flex flex-col items-start gap-2 mt-2">
+              {product.sku && (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-primary/30 bg-primary/10">
+                  <span className="text-foreground font-bold text-xs">SKU</span>
+                  <span className="font-mono tracking-wide text-foreground/90 text-xs">{product.sku}</span>
+                </div>
+              )}
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="w-2 h-2 rounded-full bg-primary" /> Direct import · No middlemen
+              </span>
+            </div>
+
+            {product.description && (
+              <div className="bg-primary/5 border border-primary/20 rounded-card p-3 mt-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-heading font-bold text-sm truncate">Product Description</p>
+                  <button
+                    onClick={() => setDescExpanded(v => !v)}
+                    className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-pill bg-primary text-primary-foreground text-xs font-bold hover:bg-accent-hover transition-colors"
+                  >
+                    {descExpanded ? "Close" : "View description"}
+                    {descExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                </div>
+                {descExpanded && (
+                  <div className="mt-2 pt-2 border-t border-primary/20 animate-fade-in-up">
+                    <p className="font-heading font-semibold text-xs mb-1">Full Description</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{product.description}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Pricing block */}
           <div className="bg-card border-l-[3px] border-primary rounded-card p-5 border border-border">
-            <p className="font-heading font-bold text-[32px] text-primary">Rs {product.pricePerPc.toLocaleString()} <span className="text-sm font-body text-muted-foreground">/ pc</span></p>
-            <p className="text-sm text-muted-foreground line-through mt-1">Market rate: ~Rs {product.marketRate.toLocaleString()} / pc</p>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-pill bg-success/10 text-success text-xs font-medium mt-2">
-              You save Rs {savings} / pc ({savingsPercent}%)
-            </span>
-            <p className="text-sm text-muted-foreground mt-2">Minimum order: {product.moq} pcs</p>
-            <p className="font-heading font-bold text-xl mt-2">{qty} pcs = Rs {totalPrice.toLocaleString()}</p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-heading font-bold text-[28px] text-primary leading-tight">Rs {product.pricePerPc.toLocaleString()} <span className="text-sm font-body text-muted-foreground">/ pc</span></p>
+                <p className="text-sm text-muted-foreground line-through mt-1">Market rate: ~Rs {product.marketRate.toLocaleString()} / pc</p>
+                <p className="text-sm text-muted-foreground mt-2">Minimum order: {product.moq} pcs</p>
+              </div>
+              {!isSoldOut && (
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-pill bg-success/10 text-success text-xs font-medium whitespace-nowrap">
+                    You save Rs {savings} / pc ({savingsPercent}%)
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setQty(qty > 30 ? qty - 1 : Math.max(product.moq, qty - 10))} className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-sm hover:bg-muted">−</button>
+                    <span className="font-mono text-sm w-6 text-center">{qty}</span>
+                    <button onClick={() => setQty(qty < 30 ? Math.min(30, qty + 10) : qty + 1)} className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-sm hover:bg-muted">+</button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Total ({qty} pcs)</span>
+              <span className="font-heading font-bold text-xl">Rs {totalPrice.toLocaleString()}</span>
+            </div>
           </div>
 
           {/* Variants */}
@@ -136,15 +201,19 @@ export default function ProductDetailPage() {
           {/* Qty + CTA */}
           {!isSoldOut ? (
             <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <button onClick={() => setQty(qty > 30 ? qty - 1 : Math.max(product.moq, qty - 10))} className="w-12 h-12 rounded-lg border border-border flex items-center justify-center text-lg hover:bg-muted">−</button>
-                <span className="font-mono text-lg w-16 text-center">{qty}</span>
-                <button onClick={() => setQty(qty < 30 ? Math.min(30, qty + 10) : qty + 1)} className="w-12 h-12 rounded-lg border border-border flex items-center justify-center text-lg hover:bg-muted">+</button>
+              <div className="flex items-center gap-2">
+                <button onClick={handleAdd} className="flex-1 h-[52px] rounded-lg bg-primary text-primary-foreground font-heading font-semibold text-lg hover:bg-accent-hover transition-all active:scale-[0.97]">
+                  Add to cart
+                </button>
+                <button
+                  onClick={handleAiClick}
+                  className="h-[52px] px-4 rounded-lg border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-all active:scale-[0.97] inline-flex items-center gap-1.5 shrink-0"
+                  title="Generate AI Product Listing"
+                >
+                  <Sparkles size={18} />
+                  <Lock size={12} className="text-amber-500" />
+                </button>
               </div>
-              <p className="text-sm text-muted-foreground">{qty} pcs = Rs {totalPrice.toLocaleString()}</p>
-              <button onClick={handleAdd} className="w-full h-[52px] rounded-lg bg-primary text-primary-foreground font-heading font-semibold text-lg hover:bg-accent-hover transition-all active:scale-[0.97]">
-                Add to cart
-              </button>
               <button onClick={() => toggleFavorite(product.id)} className="w-full h-11 rounded-lg border border-border flex items-center justify-center gap-2 text-sm hover:bg-muted transition-colors">
                 <Heart size={16} className={wishlisted ? "fill-primary text-primary" : ""} /> {wishlisted ? "Saved to favourites" : "Save to favourites"}
               </button>
@@ -183,17 +252,22 @@ export default function ProductDetailPage() {
             </div>
           ))}
 
-          {/* Seller tips */}
+          {/* Seller tips — dropdown, matching the FAQ accordion above */}
           {product.sellerTips.length > 0 && (
-            <div className="bg-olive/10 rounded-card p-4">
-              <p className="font-heading font-medium text-[15px] mb-2">How sellers are using this</p>
-              <ul className="space-y-1">
-                {product.sellerTips.map((t, i) => (
-                  <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                    <span className="text-olive mt-1">•</span>{t}
-                  </li>
-                ))}
-              </ul>
+            <div className="border-b border-border">
+              <button onClick={() => setOpenAccordion(openAccordion === "tips" ? null : "tips")} className="w-full flex items-center justify-between py-3 text-sm font-medium">
+                How sellers are using this
+                {openAccordion === "tips" ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+              {openAccordion === "tips" && (
+                <ul className="pb-3 space-y-1 animate-fade-in-up">
+                  {product.sellerTips.map((t, i) => (
+                    <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <span className="text-primary mt-1">•</span>{t}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
         </div>
@@ -223,6 +297,15 @@ export default function ProductDetailPage() {
       )}
 
       <CartSidebar />
+      <SellerAiModal product={product} open={aiModalOpen} onOpenChange={setAiModalOpen} />
+      <SubscriptionModal
+        isOpen={subModalOpen}
+        onClose={() => setSubModalOpen(false)}
+        userEmail={member?.email || ""}
+        userName={member?.name || ""}
+        currentStatus={subStatus}
+        onSuccess={() => setAiModalOpen(true)}
+      />
     </div>
   );
 }

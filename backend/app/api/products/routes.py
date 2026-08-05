@@ -35,11 +35,30 @@ def _map_row(row: dict) -> dict:
     }
 
 
+# Columns needed for the home screen's trending strip — just enough to show
+# an image + name and to re-fetch the full product by id on tap. Keeping
+# this separate from _map_row's "*" select avoids shipping description,
+# specs, variants etc. over the wire for a card that never displays them.
+_LEAN_COLUMNS = "id, slug, name, images, tags"
+
+
+def _map_row_lean(row: dict) -> dict:
+    return {
+        "id": row.get("id"),
+        "slug": row.get("slug"),
+        "name": row.get("name"),
+        "images": row.get("images") or [],
+        "tags": row.get("tags") or [],
+    }
+
+
 @products_bp.get("")
 def list_products():
     user = get_current_user()
     db = get_admin_client()
-    query = db.table("products").select("*")
+
+    lean = request.args.get("fields") == "lean"
+    query = db.table("products").select(_LEAN_COLUMNS if lean else "*")
 
     if not is_admin(user):
         query = query.in_("status", VISIBLE_STATUSES)
@@ -66,7 +85,8 @@ def list_products():
         query = query.limit(limit)
 
     res = query.order("updated_at", desc=True).execute()
-    return jsonify(success=True, products=[_map_row(r) for r in (res.data or [])])
+    mapper = _map_row_lean if lean else _map_row
+    return jsonify(success=True, products=[mapper(r) for r in (res.data or [])])
 
 
 @products_bp.get("/<id_or_slug>")

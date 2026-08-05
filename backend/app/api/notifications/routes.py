@@ -1,6 +1,9 @@
-from flask import Blueprint, g, jsonify
+import uuid
 
-from ...core.auth import require_auth
+from flask import Blueprint, g, jsonify, request
+
+from ...core.auth import require_admin, require_auth
+from ...core.notifications import create_notification
 from ...core.supabase_client import get_admin_client
 
 notifications_bp = Blueprint("notifications", __name__)
@@ -67,3 +70,38 @@ def delete_notification(notification_id: str):
         "auth_user_id", g.user["id"]
     ).execute()
     return jsonify(success=True)
+
+
+@notifications_bp.post("/admin/send")
+@require_admin
+def admin_send_to_members():
+    """Admin broadcast to a specific list of members — used by the "Cart
+    Stats" / "Fav Stats" panels to message everyone who has a given product
+    in their cart/favorites (e.g. a discount or restock alert).
+
+    A fresh related_id is generated per send so `create_notification`'s
+    (auth_user_id, type, related_id) dedupe doesn't silently swallow a
+    second message about the same product to the same member.
+    """
+    body = request.get_json(silent=True) or {}
+    member_ids = body.get("memberIds")
+    title = (body.get("title") or "").strip()
+    message = (body.get("body") or "").strip()
+    product_id = body.get("productId")
+
+    if not isinstance(member_ids, list) or not member_ids:
+        return jsonify(success=False, error="memberIds is required."), 400
+    if not title or not message:
+        return jsonify(success=False, error="title and body are required."), 400
+
+    related_id = f"admin-msg:{product_id or 'general'}:{uuid.uuid4().hex[:12]}"
+
+    db = get_admin_client()
+    sent = 0
+    for auth_user_id in member_ids:
+        if not auth_user_id:
+            continue
+        create_notification(db, auth_user_id, "admin_message", title, message, related_id=related_id)
+        sent += 1
+
+    return jsonify(success=True, sent=sent)

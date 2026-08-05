@@ -2,7 +2,8 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, g, jsonify, request
 
-from ...core.auth import require_auth
+from ...core.auth import require_admin, require_auth
+from ...core.members import fetch_members_by_auth_ids
 from ...core.supabase_client import get_admin_client
 from ..products.routes import _map_row as _map_product
 
@@ -33,6 +34,55 @@ def list_cart():
         .execute()
     )
     return jsonify(success=True, cart=[_map_row(r) for r in (res.data or [])])
+
+
+@cart_bp.get("/admin/counts")
+@require_admin
+def admin_cart_counts():
+    """How many members have each product in their cart — feeds the admin
+    "Cart & Fav Stats" dashboard's per-product counts."""
+    db = get_admin_client()
+    res = db.table("member_cart").select("product_id").execute()
+    counts: dict = {}
+    for r in res.data or []:
+        pid = r.get("product_id")
+        if pid:
+            counts[pid] = counts.get(pid, 0) + 1
+    return jsonify(success=True, counts=counts)
+
+
+@cart_bp.get("/admin/product/<product_id>")
+@require_admin
+def admin_cart_members(product_id: str):
+    """Members who currently have this product in their cart — the "Cart
+    Stats" view on the admin product list."""
+    db = get_admin_client()
+    res = (
+        db.table("member_cart")
+        .select("auth_user_id, quantity, created_at, updated_at")
+        .eq("product_id", product_id)
+        .order("updated_at", desc=True)
+        .execute()
+    )
+    rows = res.data or []
+    members_by_id = fetch_members_by_auth_ids([r.get("auth_user_id") for r in rows])
+
+    members = []
+    for r in rows:
+        m = members_by_id.get(r.get("auth_user_id")) or {}
+        members.append(
+            {
+                "authUserId": r.get("auth_user_id"),
+                "quantity": r.get("quantity"),
+                "addedAt": r.get("created_at"),
+                "updatedAt": r.get("updated_at"),
+                "name": m.get("name"),
+                "email": m.get("email"),
+                "whatsapp": m.get("whatsapp"),
+                "city": m.get("city"),
+            }
+        )
+    return jsonify(success=True, members=members)
 
 
 @cart_bp.post("")

@@ -7,7 +7,21 @@ from ...core.supabase_client import get_admin_client
 
 applications_bp = Blueprint("applications", __name__)
 
-MEMBER_PROFILE_FIELDS = {"name", "whatsapp", "city", "business_name"}
+MEMBER_PROFILE_FIELDS = {"name", "whatsapp", "city", "business_name", "avatar_url"}
+
+
+def _fetch_one(query):
+    """Run a Supabase query and return the first row or None.
+
+    Deliberately avoids .maybe_single() — on this project's postgrest-py
+    version it raises APIError("Missing response", code 204) instead of
+    returning None when a query legitimately matches zero rows (see
+    products/routes.py and promo_codes/routes.py for the same fix).
+    .limit(1) + indexing res.data ourselves sidesteps that entirely.
+    """
+    res = query.limit(1).execute()
+    rows = res.data or []
+    return rows[0] if rows else None
 
 
 def _map_row(row: dict) -> dict:
@@ -17,6 +31,7 @@ def _map_row(row: dict) -> dict:
         "whatsapp": row.get("whatsapp"),
         "city": row.get("city"),
         "businessName": row.get("business_name"),
+        "avatarUrl": row.get("avatar_url"),
         "sellsWhat": row.get("sells_what") or [],
         "sellsWhere": row.get("sells_where") or [],
         "monthlyVolume": row.get("monthly_volume"),
@@ -61,14 +76,9 @@ def submit_application():
 @require_auth
 def get_profile():
     db = get_admin_client()
-    res = (
-        db.table("membership_applications")
-        .select("*")
-        .eq("auth_user_id", g.user["id"])
-        .maybe_single()
-        .execute()
+    row = _fetch_one(
+        db.table("membership_applications").select("*").eq("auth_user_id", g.user["id"])
     )
-    row = res.data if res else None
     if not row:
         return jsonify(success=False, error="No profile found for this account."), 404
     return jsonify(success=True, profile=_map_row(row))
@@ -87,6 +97,8 @@ def update_profile():
         updates["city"] = body["city"]
     if "businessName" in body:
         updates["business_name"] = str(body["businessName"]).strip()
+    if "avatarUrl" in body:
+        updates["avatar_url"] = body["avatarUrl"]
 
     if not updates:
         return jsonify(success=False, error="No writable fields provided."), 400

@@ -8,6 +8,20 @@ products_bp = Blueprint("products", __name__)
 VISIBLE_STATUSES = ["active", "sold_out"]
 
 
+def _fetch_one(query):
+    """Run a Supabase query and return the first row or None.
+
+    Deliberately avoids .maybe_single() — on this project's postgrest-py
+    version it raises APIError("Missing response", code 204) instead of
+    returning None when a query legitimately matches zero rows (see
+    promo_codes/routes.py for the same fix). .limit(1) + indexing res.data
+    ourselves sidesteps that entirely.
+    """
+    res = query.limit(1).execute()
+    rows = res.data or []
+    return rows[0] if rows else None
+
+
 def _map_row(row: dict) -> dict:
     sku = (row.get("sku") or "").strip()
     return {
@@ -32,6 +46,7 @@ def _map_row(row: dict) -> dict:
         "catalogType": "china" if row.get("catalog_type") == "china" else "standard",
         "showOnLanding": bool(row.get("show_on_landing")),
         "landingSort": row.get("landing_sort") or 0,
+        "showInCategoryHome": bool(row.get("show_in_category_home")),
     }
 
 
@@ -39,7 +54,9 @@ def _map_row(row: dict) -> dict:
 # an image + name and to re-fetch the full product by id on tap. Keeping
 # this separate from _map_row's "*" select avoids shipping description,
 # specs, variants etc. over the wire for a card that never displays them.
-_LEAN_COLUMNS = "id, slug, name, images, tags"
+# `category` is included so the home screen can group curated
+# show_in_category_home products into per-category rows client-side.
+_LEAN_COLUMNS = "id, slug, name, images, tags, category"
 
 
 def _map_row_lean(row: dict) -> dict:
@@ -49,6 +66,7 @@ def _map_row_lean(row: dict) -> dict:
         "name": row.get("name"),
         "images": row.get("images") or [],
         "tags": row.get("tags") or [],
+        "category": row.get("category"),
     }
 
 
@@ -77,6 +95,9 @@ def list_products():
     if request.args.get("landing") == "true":
         query = query.eq("show_on_landing", True).eq("status", "active")
 
+    if request.args.get("home_category") == "true":
+        query = query.eq("show_in_category_home", True).eq("status", "active")
+
     try:
         limit = int(request.args.get("limit", 0))
     except ValueError:
@@ -98,14 +119,12 @@ def get_product(id_or_slug: str):
         query = query.in_("status", VISIBLE_STATUSES)
 
     # Try slug first (public URLs use slugs), fall back to id.
-    res = query.eq("slug", id_or_slug).maybe_single().execute()
-    row = res.data if res else None
+    row = _fetch_one(query.eq("slug", id_or_slug))
     if not row:
         query2 = db.table("products").select("*")
         if not is_admin(user):
             query2 = query2.in_("status", VISIBLE_STATUSES)
-        res2 = query2.eq("id", id_or_slug).maybe_single().execute()
-        row = res2.data if res2 else None
+        row = _fetch_one(query2.eq("id", id_or_slug))
 
     if not row:
         return jsonify(success=False, error="Product not found"), 404

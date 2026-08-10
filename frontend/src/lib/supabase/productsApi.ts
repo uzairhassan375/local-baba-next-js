@@ -23,6 +23,7 @@ type ProductRow = {
   catalog_type?: string | null;
   show_on_landing?: boolean;
   landing_sort?: number;
+  show_in_category_home?: boolean;
 };
 
 function asTags(v: unknown): Product["tags"] {
@@ -94,6 +95,7 @@ export function mapRowToProduct(row: ProductRow): Product {
     catalogType: row.catalog_type === "china" ? "china" : "standard",
     showOnLanding: row.show_on_landing ?? false,
     landingSort: row.landing_sort ?? 0,
+    showInCategoryHome: row.show_in_category_home ?? false,
   };
 }
 
@@ -182,6 +184,7 @@ export type ProductPayload = {
   catalog_type: "standard" | "china";
   show_on_landing: boolean;
   landing_sort: number;
+  show_in_category_home: boolean;
 };
 
 export function suggestSkuFromSlug(slug: string): string {
@@ -214,6 +217,7 @@ export function productToPayload(p: {
   catalogType?: "standard" | "china";
   showOnLanding?: boolean;
   landingSort?: number;
+  showInCategoryHome?: boolean;
 }): ProductPayload {
   const sku = p.sku?.trim() ? p.sku.trim() : suggestSkuFromSlug(p.slug);
   return {
@@ -237,6 +241,7 @@ export function productToPayload(p: {
     catalog_type: p.catalogType === "china" ? "china" : "standard",
     show_on_landing: p.showOnLanding ?? false,
     landing_sort: p.landingSort ?? 0,
+    show_in_category_home: p.showInCategoryHome ?? false,
   };
 }
 
@@ -274,6 +279,17 @@ export async function patchProductLanding(
       show_on_landing: showOnLanding,
       ...(landingSort !== undefined ? { landing_sort: landingSort } : {}),
     })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/** Quick toggle from the admin Categories page — whether a product appears
+ * in its category's curated home-page collection row on the mobile app. */
+export async function patchProductCategoryHome(id: string, showInCategoryHome: boolean): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("products")
+    .update({ show_in_category_home: showInCategoryHome })
     .eq("id", id);
   if (error) throw error;
 }

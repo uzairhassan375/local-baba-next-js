@@ -5,7 +5,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useOrders } from "@/contexts/OrdersContext";
-import { Copy, Check, MapPin, Plus, Upload, X, ShieldAlert, CreditCard, Landmark, Smartphone, Tag, Loader2 } from "lucide-react";
+import { Copy, Check, MapPin, Plus, Upload, X, ShieldAlert, CreditCard, Landmark, Tag, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { applyPromoCode, type AppliedPromo } from "@/lib/api/promoCodesApi";
 
@@ -158,7 +158,7 @@ export default function CheckoutPage() {
       return;
     }
     if (paymentMethod === "card") {
-      toast.error("Credit/Debit card payment is coming soon. Please select Bank Transfer or EasyPaisa/JazzCash.");
+      toast.error("Credit/Debit card payment is coming soon. Please select Bank Transfer.");
       return;
     }
     setShowPaymentModal(true);
@@ -339,7 +339,7 @@ export default function CheckoutPage() {
                     <Landmark size={22} className="text-primary" />
                     <div>
                       <p className="font-medium text-sm">Direct Bank Transfer</p>
-                      <p className="text-xs text-muted-foreground">Meezan Bank Account Transfer</p>
+                      <p className="text-xs text-muted-foreground">UBL Account Transfer</p>
                     </div>
                   </div>
                   <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600">Active</span>
@@ -347,11 +347,11 @@ export default function CheckoutPage() {
 
                 {paymentMethod === "bank_transfer" && (
                   <div className="mt-3 p-4 bg-muted rounded-lg text-sm space-y-1 animate-fade-in-up border border-border">
-                    <p>Bank: <strong>Meezan Bank</strong></p>
-                    <p>Account Title: <strong>The Local Baba Trading</strong></p>
+                    <p>Bank: <strong>UBL</strong></p>
+                    <p>Account Title: <strong>FINK TECH</strong></p>
                     <div className="flex items-center gap-2">
-                      <p>IBAN: <strong className="font-mono">PK00MEZN000123456789</strong></p>
-                      <button type="button" onClick={() => handleCopy("PK00MEZN000123456789")} className="text-primary">
+                      <p>Account #: <strong className="font-mono">0673388681734</strong></p>
+                      <button type="button" onClick={() => handleCopy("0673388681734")} className="text-primary">
                         {copied ? <Check size={14} /> : <Copy size={14} />}
                       </button>
                     </div>
@@ -359,39 +359,7 @@ export default function CheckoutPage() {
                 )}
               </div>
 
-              {/* Option 2: EasyPaisa / JazzCash */}
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod("easypaisa")}
-                  className={`w-full p-4 rounded-card border text-left transition-colors flex items-center justify-between ${
-                    paymentMethod === "easypaisa" ? "border-primary bg-primary/5" : "border-border hover:border-primary"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Smartphone size={22} className="text-primary" />
-                    <div>
-                      <p className="font-medium text-sm">EasyPaisa / JazzCash</p>
-                      <p className="text-xs text-muted-foreground">Mobile Wallet Direct Payment</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600">Active</span>
-                </button>
-
-                {paymentMethod === "easypaisa" && (
-                  <div className="mt-3 p-4 bg-muted rounded-lg text-sm space-y-1 animate-fade-in-up border border-border">
-                    <p>Account Title: <strong>The Local Baba</strong></p>
-                    <div className="flex items-center gap-2">
-                      <p>Mobile Number: <strong className="font-mono">0300 1234567</strong></p>
-                      <button type="button" onClick={() => handleCopy("03001234567")} className="text-primary">
-                        {copied ? <Check size={14} /> : <Copy size={14} />}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Option 3: Credit / Debit Card (COMING SOON) */}
+              {/* Option 2: Credit / Debit Card (COMING SOON) */}
               <div>
                 <div
                   className="w-full p-4 rounded-card border border-border bg-muted/30 opacity-70 cursor-not-allowed flex items-center justify-between"
@@ -512,25 +480,15 @@ export default function CheckoutPage() {
               <span className="text-3xl">📸</span>
               <h3 className="font-heading font-bold text-xl text-foreground">Upload Payment Screenshot</h3>
               <p className="text-xs text-muted-foreground">
-                Transfer <strong>Rs {discountedTotal.toLocaleString()}</strong> via {paymentMethod === "bank_transfer" ? "Bank Transfer" : "EasyPaisa"} and attach your receipt.
+                Transfer <strong>Rs {discountedTotal.toLocaleString()}</strong> via Bank Transfer and attach your receipt.
               </p>
             </div>
 
             {/* Payment Transfer Instructions Box */}
             <div className="p-3 bg-muted/60 rounded-xl text-xs space-y-1.5 border border-border font-mono">
-              {paymentMethod === "bank_transfer" ? (
-                <>
-                  <p><span className="text-muted-foreground font-sans">Bank:</span> Meezan Bank</p>
-                  <p><span className="text-muted-foreground font-sans">Account Title:</span> The Local Baba Trading</p>
-                  <p><span className="text-muted-foreground font-sans">IBAN:</span> PK00MEZN000123456789</p>
-                </>
-              ) : (
-                <>
-                  <p><span className="text-muted-foreground font-sans">Method:</span> EasyPaisa / JazzCash</p>
-                  <p><span className="text-muted-foreground font-sans">Account Title:</span> The Local Baba</p>
-                  <p><span className="text-muted-foreground font-sans">Mobile Number:</span> 0300 1234567</p>
-                </>
-              )}
+              <p><span className="text-muted-foreground font-sans">Bank:</span> UBL</p>
+              <p><span className="text-muted-foreground font-sans">Account Title:</span> FINK TECH</p>
+              <p><span className="text-muted-foreground font-sans">Account #:</span> 0673388681734</p>
             </div>
 
             {/* File Upload Box */}

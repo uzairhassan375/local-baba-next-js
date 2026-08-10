@@ -31,7 +31,7 @@ export default function OrderConfirmationPage() {
   ];
 
   const copyAll = () => {
-    const text = `Bank: Meezan Bank\nAccount: The Local Baba Trading\nIBAN: PK00MEZN000123456789\nAmount: Rs ${totalAmount}\nReference: ${orderId}`;
+    const text = `Bank: UBL\nAccount Title: FINK TECH\nAccount #: 0673388681734\nAmount: Rs ${totalAmount}\nReference: ${orderId}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -53,9 +53,9 @@ export default function OrderConfirmationPage() {
         <div className="bg-amber-50 border border-amber-200 rounded-card p-5 space-y-3">
           <p className="text-sm font-medium">To confirm your order, transfer Rs {totalAmount} to:</p>
           <div className="space-y-1 text-sm">
-            <p>Bank: <strong>Meezan Bank</strong></p>
-            <p>Account: <strong>The Local Baba Trading</strong></p>
-            <p>IBAN: <strong className="font-mono">PK00MEZN000123456789</strong></p>
+            <p>Bank: <strong>UBL</strong></p>
+            <p>Account Title: <strong>FINK TECH</strong></p>
+            <p>Account #: <strong className="font-mono">0673388681734</strong></p>
             <p className="text-muted-foreground text-xs">Use order #{orderId} as your transfer reference</p>
           </div>
           <button onClick={copyAll} className="flex items-center gap-2 h-9 px-4 rounded-lg border border-border text-sm hover:bg-card transition-colors">

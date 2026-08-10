@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Users, Package, ShoppingCart, UserCheck, MessageSquare, LogOut, Table2, LayoutTemplate, Receipt, CreditCard, BarChart3, Tag } from "lucide-react";
+import { LayoutDashboard, Users, Package, ShoppingCart, UserCheck, MessageSquare, LogOut, Table2, LayoutTemplate, Receipt, CreditCard, BarChart3, Tag, Layers, Image as ImageIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
@@ -9,6 +9,7 @@ const adminLinks = [
   { label: "Applications", href: "/admin/applications", icon: UserCheck },
   { label: "Subscriptions", href: "/admin/subscriptions", icon: CreditCard },
   { label: "Products", href: "/admin/products", icon: Package },
+  { label: "Collections", href: "/admin/categories", icon: Layers },
   { label: "Cart & Fav Stats", href: "/admin/cart-fav-stats", icon: BarChart3 },
   { label: "Promo Codes", href: "/admin/promo-codes", icon: Tag },
   { label: "Bulk price & MOQ", href: "/admin/products/bulk", icon: Table2 },
@@ -18,6 +19,7 @@ const adminLinks = [
   { label: "Invoices", href: "/admin/invoices", icon: Receipt },
   { label: "Members", href: "/admin/members", icon: Users },
   { label: "Announcements", href: "/admin/blasts", icon: MessageSquare },
+  { label: "Home Banners", href: "/admin/banners", icon: ImageIcon },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {

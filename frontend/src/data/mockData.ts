@@ -24,6 +24,8 @@ export interface Product {
   /** Shown on public landing page (admin-curated) */
   showOnLanding?: boolean;
   landingSort?: number;
+  /** Shown in its category's curated home-page collection row (mobile app) */
+  showInCategoryHome?: boolean;
 }
 
 export interface Order {

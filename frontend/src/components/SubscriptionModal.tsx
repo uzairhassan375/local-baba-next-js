@@ -16,9 +16,9 @@ interface SubscriptionModalProps {
 }
 
 const BANK_DETAILS = {
-  bankName: "Meezan Bank",
-  accountTitle: "The Local Baba Trading",
-  iban: "PK00MEZN000123456789",
+  bankName: "UBL",
+  accountTitle: "FINK TECH",
+  accountNumber: "0673388681734",
   amount: "$10.00",
 };
 
@@ -38,7 +38,7 @@ export function SubscriptionModal({
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [copiedIban, setCopiedIban] = useState(false);
+  const [copiedAccountNumber, setCopiedAccountNumber] = useState(false);
 
   // Sync email/name whenever props or member changes
   useEffect(() => {
@@ -50,11 +50,11 @@ export function SubscriptionModal({
 
   if (!isOpen) return null;
 
-  const handleCopyIban = () => {
-    navigator.clipboard.writeText(BANK_DETAILS.iban);
-    setCopiedIban(true);
-    toast.success("IBAN copied to clipboard!");
-    setTimeout(() => setCopiedIban(false), 2000);
+  const handleCopyAccountNumber = () => {
+    navigator.clipboard.writeText(BANK_DETAILS.accountNumber);
+    setCopiedAccountNumber(true);
+    toast.success("Account number copied to clipboard!");
+    setTimeout(() => setCopiedAccountNumber(false), 2000);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -209,18 +209,18 @@ export function SubscriptionModal({
               <span className="font-medium text-foreground">{BANK_DETAILS.accountTitle}</span>
             </div>
             <div className="flex justify-between items-center py-1">
-              <span className="text-muted-foreground">IBAN Number:</span>
+              <span className="text-muted-foreground">Account #:</span>
               <div className="flex items-center gap-2">
                 <code className="bg-background px-2 py-0.5 rounded text-xs font-mono font-semibold text-primary">
-                  {BANK_DETAILS.iban}
+                  {BANK_DETAILS.accountNumber}
                 </code>
                 <button
                   type="button"
-                  onClick={handleCopyIban}
+                  onClick={handleCopyAccountNumber}
                   className="p-1 text-muted-foreground hover:text-primary transition-colors"
-                  title="Copy IBAN"
+                  title="Copy account number"
                 >
-                  {copiedIban ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                  {copiedAccountNumber ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
                 </button>
               </div>
             </div>

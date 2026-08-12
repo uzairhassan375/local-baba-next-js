@@ -172,6 +172,11 @@ export default function MemberFinancialCalculatorPage() {
             <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span className="font-semibold">Rs {result.expectedTaxPerOrder.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Product + dispatch + delivery/return (blended)</span><span className="font-semibold">Rs {result.fixedCostPerOrder.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
             <div className="flex justify-between border-t border-border pt-1.5 mt-1.5"><span className="font-bold">Total expected cost</span><span className="font-bold">Rs {result.expectedTotalCostPerOrder.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+            <div className="flex justify-between border-t border-border pt-1.5 mt-1.5">
+              <span className="text-muted-foreground">Max ad spend (before loss)</span>
+              <span className="font-semibold">{result.maxAdSpendPerOrder != null ? `Rs ${result.maxAdSpendPerOrder.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</span>
+            </div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Break-even ROAS</span><span className="font-semibold">{result.breakEvenRoas != null ? `${result.breakEvenRoas.toFixed(2)}x` : "—"}</span></div>
           </div>
         </div>
       </div>

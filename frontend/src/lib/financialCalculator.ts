@@ -8,14 +8,19 @@
 // return, incurring return charges instead of delivery charges (per spec:
 // a returned order is charged return charges, never delivery charges).
 //
-// Expected profit per order = deliveryRatio × price
-//   − [productCost + dispatchCost + price/roas
-//      + deliveryRatio × (deliveryCharges + tax% × price)
-//      + (1 − deliveryRatio) × returnCharges]
+// Product/dispatch/delivery/return/tax are blended into one `totalCost`
+// figure per order, then ad spend and profit follow the same ROAS-driven
+// formula used everywhere else ad spend is priced on this platform:
+//   adCostPerUnit = price / roas
+//   expectedProfitPerOrder ("take-home") = deliveryRatio × price − totalCost − adCostPerUnit
+//   profitMarginPercent (undiluted, "if this exact order delivers") =
+//     (price − totalCost − adCostPerUnit) / price × 100
+//   maxAdSpendPerOrder = deliveryRatio × price − totalCost (headroom before a unit goes negative)
+//   breakEvenRoas = price / maxAdSpendPerOrder
 //
 // Suggested price follows the platform's standard "3x total cost" rule,
 // solved algebraically since ad spend and tax are themselves a function of
-// price (see suggestedSellingPrice below).
+// price (see suggestedSellingPrice below) — unchanged by the above.
 
 export interface CalculatorInputs {
   productCost: number;
@@ -46,6 +51,10 @@ export interface CalculatorResult {
   suggestedSellingPrice: number | null;
   /** Null when no finite price breaks even (ad spend alone outpaces deliverable revenue). */
   breakEvenSellingPrice: number | null;
+  /** Headroom for ad spend per order before this price goes negative. Null when there's none. */
+  maxAdSpendPerOrder: number | null;
+  /** ROAS needed to break even at this price. Null when no ROAS breaks even. */
+  breakEvenRoas: number | null;
 }
 
 const BREAKEVEN_TOLERANCE_RS = 0.5;
@@ -75,21 +84,37 @@ export function calculate(inputs: CalculatorInputs): CalculatorResult {
   const k = deliveryRatio - m;
 
   const expectedRevenuePerOrder = deliveryRatio * price;
-  const expectedAdCostPerOrder = roas > 0 ? price / roas : 0;
+  const expectedAdCostPerOrder = roas > 0 ? price / roas : 0; // adCostPerUnit
   const expectedTaxPerOrder = deliveryRatio * taxFraction * price;
-  const expectedTotalCostPerOrder = fixedCostPerOrder + expectedAdCostPerOrder + expectedTaxPerOrder;
-  const expectedProfitPerOrder = expectedRevenuePerOrder - expectedTotalCostPerOrder;
+
+  // "totalCost" in the ROAS-driven formula's terms — every non-ad cost
+  // (product, dispatch, weighted delivery/return, tax) blended into one
+  // per-order figure.
+  const totalCost = fixedCostPerOrder + expectedTaxPerOrder;
+  const expectedTotalCostPerOrder = totalCost + expectedAdCostPerOrder;
+
+  // "Take-home" profit — revenue actually captured (deliveryRatio × price)
+  // minus total cost minus ad spend. This is the realistic expected profit
+  // per order attempted, RTO/returns included.
+  const expectedProfitPerOrder = expectedRevenuePerOrder - totalCost - expectedAdCostPerOrder;
 
   let verdict: PriceVerdict = "breakeven";
   if (Math.abs(expectedProfitPerOrder) >= BREAKEVEN_TOLERANCE_RS) {
     verdict = expectedProfitPerOrder > 0 ? "profit" : "loss";
   }
 
-  const profitMarginPercent =
-    expectedRevenuePerOrder > 0 ? (expectedProfitPerOrder / expectedRevenuePerOrder) * 100 : null;
+  // Undiluted margin — "if this exact order delivers", ignoring RTO/returns.
+  const undilutedProfit = price - totalCost - expectedAdCostPerOrder;
+  const profitMarginPercent = price > 0 ? (undilutedProfit / price) * 100 : null;
 
   const suggestedSellingPrice = 1 - 3 * m > 0 ? (3 * fixedCostPerOrder) / (1 - 3 * m) : null;
   const breakEvenSellingPrice = k > 0 ? fixedCostPerOrder / k : null;
+
+  // Max ad spend headroom per order, and the ROAS that spends exactly that
+  // much — both at the delivery ratio you've set.
+  const maxAdSpendRaw = expectedRevenuePerOrder - totalCost;
+  const maxAdSpendPerOrder = price > 0 && maxAdSpendRaw > 0 ? maxAdSpendRaw : null;
+  const breakEvenRoas = maxAdSpendPerOrder != null ? price / maxAdSpendPerOrder : null;
 
   return {
     fixedCostPerOrder,
@@ -103,5 +128,7 @@ export function calculate(inputs: CalculatorInputs): CalculatorResult {
     verdict,
     suggestedSellingPrice,
     breakEvenSellingPrice,
+    maxAdSpendPerOrder,
+    breakEvenRoas,
   };
 }

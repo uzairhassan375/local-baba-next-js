@@ -51,12 +51,12 @@ def _map_row(row: dict) -> dict:
 
 
 # Columns needed for the home screen's trending strip — just enough to show
-# an image + name and to re-fetch the full product by id on tap. Keeping
-# this separate from _map_row's "*" select avoids shipping description,
-# specs, variants etc. over the wire for a card that never displays them.
-# `category` is included so the home screen can group curated
-# show_in_category_home products into per-category rows client-side.
-_LEAN_COLUMNS = "id, slug, name, images, tags, category"
+# an image + name + price and to re-fetch the full product by id on tap.
+# Keeping this separate from _map_row's "*" select avoids shipping
+# description, specs, variants etc. over the wire for a card that never
+# displays them. `category` is included so the home screen can group
+# curated show_in_category_home products into per-category rows client-side.
+_LEAN_COLUMNS = "id, slug, name, images, tags, category, price_per_pc"
 
 
 def _map_row_lean(row: dict) -> dict:
@@ -67,6 +67,7 @@ def _map_row_lean(row: dict) -> dict:
         "images": row.get("images") or [],
         "tags": row.get("tags") or [],
         "category": row.get("category"),
+        "pricePerPc": float(row.get("price_per_pc") or 0),
     }
 
 

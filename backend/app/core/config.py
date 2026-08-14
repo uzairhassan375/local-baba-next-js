@@ -21,6 +21,7 @@ class Config:
     SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
     SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
     SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "")
+    GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
     ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "")
 
     # Same Bunny Storage account the website's /api/upload-media route uses —

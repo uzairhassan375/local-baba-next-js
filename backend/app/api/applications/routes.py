@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
 
 from flask import Blueprint, g, jsonify, request
+from postgrest.exceptions import APIError
 
-from ...core.auth import get_current_user, require_auth
+from ...core.auth import get_current_user, require_admin, require_auth
 from ...core.supabase_client import get_admin_client
 
 applications_bp = Blueprint("applications", __name__)
@@ -69,6 +70,77 @@ def submit_application():
     res = db.table("membership_applications").insert(record).execute()
     if not res.data:
         return jsonify(success=False, error="Could not submit application."), 500
+    return jsonify(success=True, application=_map_row(res.data[0]))
+
+
+@applications_bp.post("/applications/register")
+@require_auth
+def register_membership():
+    """Auto-approved membership row created right after self-service signup
+    (as opposed to /applications above, which is the "Apply" form's
+    pending-review flow). Trusts only the verified session for identity —
+    never client-supplied auth_user_id/email — since this immediately
+    grants member access."""
+    body = request.get_json(silent=True) or {}
+    required = ["name", "whatsapp", "city", "businessName"]
+    if any(not body.get(f) for f in required):
+        return jsonify(success=False, error="name, whatsapp, city and businessName are required."), 400
+
+    record = {
+        "name": body["name"].strip(),
+        "whatsapp": str(body["whatsapp"]),
+        "city": body["city"],
+        "business_name": body["businessName"].strip(),
+        "sells_what": body.get("sellsWhat") or [],
+        "sells_where": body.get("sellsWhere") or [],
+        "monthly_volume": body.get("monthlyVolume", ""),
+        "heard_from": body.get("heardFrom", ""),
+        "status": "approved",
+        "email": g.user["email"],
+        "auth_user_id": g.user["id"],
+        "decided_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    db = get_admin_client()
+    try:
+        res = db.table("membership_applications").insert(record).execute()
+    except APIError as exc:
+        if exc.code == "23505":  # unique violation — row already exists (e.g. retry)
+            row = _fetch_one(db.table("membership_applications").select("*").eq("auth_user_id", g.user["id"]))
+            if row:
+                return jsonify(success=True, application=_map_row(row))
+        return jsonify(success=False, error="Could not register membership."), 500
+
+    if not res.data:
+        return jsonify(success=False, error="Could not register membership."), 500
+    return jsonify(success=True, application=_map_row(res.data[0]))
+
+
+@applications_bp.get("/applications")
+@require_admin
+def list_applications():
+    db = get_admin_client()
+    res = db.table("membership_applications").select("*").order("applied_at", desc=True).execute()
+    return jsonify(success=True, applications=[_map_row(r) for r in (res.data or [])])
+
+
+@applications_bp.patch("/applications/<id>")
+@require_admin
+def update_application_status(id: str):
+    body = request.get_json(silent=True) or {}
+    status = body.get("status")
+    if status not in ("approved", "rejected"):
+        return jsonify(success=False, error="status must be 'approved' or 'rejected'."), 400
+
+    db = get_admin_client()
+    res = (
+        db.table("membership_applications")
+        .update({"status": status, "decided_at": datetime.now(timezone.utc).isoformat()})
+        .eq("id", id)
+        .execute()
+    )
+    if not res.data:
+        return jsonify(success=False, error="Application not found."), 404
     return jsonify(success=True, application=_map_row(res.data[0]))
 
 

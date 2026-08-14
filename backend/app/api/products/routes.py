@@ -1,11 +1,42 @@
 from flask import Blueprint, jsonify, request
 
-from ...core.auth import get_current_user, is_admin
+from ...core.auth import get_current_user, is_admin, require_admin
 from ...core.supabase_client import get_admin_client
 
 products_bp = Blueprint("products", __name__)
 
 VISIBLE_STATUSES = ["active", "sold_out"]
+
+# Columns the admin product form is allowed to write, matching
+# frontend `productToPayload()`'s snake_case ProductPayload exactly —
+# the frontend sends this shape as-is, no field-name translation needed.
+WRITABLE_FIELDS = {
+    "sku",
+    "slug",
+    "name",
+    "category",
+    "price_per_pc",
+    "market_rate",
+    "moq",
+    "stock",
+    "status",
+    "tags",
+    "variants",
+    "images",
+    "description",
+    "specs",
+    "seller_tips",
+    "show_in_trending",
+    "trending_sort",
+    "catalog_type",
+    "show_on_landing",
+    "landing_sort",
+    "show_in_category_home",
+}
+
+
+def _writable_updates(body: dict) -> dict:
+    return {k: v for k, v in body.items() if k in WRITABLE_FIELDS}
 
 
 def _fetch_one(query):
@@ -90,10 +121,12 @@ def list_products():
     if catalog_type:
         query = query.eq("catalog_type", catalog_type)
 
-    if request.args.get("trending") == "true":
+    trending = request.args.get("trending") == "true"
+    landing = request.args.get("landing") == "true"
+    if trending:
         query = query.eq("show_in_trending", True).eq("status", "active")
 
-    if request.args.get("landing") == "true":
+    if landing:
         query = query.eq("show_on_landing", True).eq("status", "active")
 
     if request.args.get("home_category") == "true":
@@ -106,6 +139,10 @@ def list_products():
     if limit > 0:
         query = query.limit(limit)
 
+    if trending:
+        query = query.order("trending_sort", desc=True)
+    elif landing:
+        query = query.order("landing_sort", desc=True)
     res = query.order("updated_at", desc=True).execute()
     mapper = _map_row_lean if lean else _map_row
     return jsonify(success=True, products=[mapper(r) for r in (res.data or [])])
@@ -130,3 +167,41 @@ def get_product(id_or_slug: str):
     if not row:
         return jsonify(success=False, error="Product not found"), 404
     return jsonify(success=True, product=_map_row(row))
+
+
+@products_bp.post("")
+@require_admin
+def create_product():
+    body = request.get_json(silent=True) or {}
+    payload = _writable_updates(body)
+    if not payload.get("slug") or not payload.get("name"):
+        return jsonify(success=False, error="slug and name are required."), 400
+
+    db = get_admin_client()
+    res = db.table("products").insert(payload).execute()
+    if not res.data:
+        return jsonify(success=False, error="Could not create product."), 500
+    return jsonify(success=True, product=_map_row(res.data[0]))
+
+
+@products_bp.patch("/<id>")
+@require_admin
+def update_product(id: str):
+    body = request.get_json(silent=True) or {}
+    updates = _writable_updates(body)
+    if not updates:
+        return jsonify(success=False, error="No writable fields provided."), 400
+
+    db = get_admin_client()
+    res = db.table("products").update(updates).eq("id", id).execute()
+    if not res.data:
+        return jsonify(success=False, error="Product not found."), 404
+    return jsonify(success=True, product=_map_row(res.data[0]))
+
+
+@products_bp.delete("/<id>")
+@require_admin
+def delete_product(id: str):
+    db = get_admin_client()
+    db.table("products").delete().eq("id", id).execute()
+    return jsonify(success=True)

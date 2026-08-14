@@ -1,6 +1,6 @@
-from flask import Blueprint, g, jsonify
+from flask import Blueprint, g, jsonify, request
 
-from ...core.auth import is_admin, require_auth
+from ...core.auth import is_admin, require_admin, require_auth
 from ...core.supabase_client import get_admin_client
 
 categories_bp = Blueprint("categories", __name__)
@@ -32,3 +32,29 @@ def list_categories():
         query = query.eq("is_active", True)
     res = query.order("sort_order").order("created_at").execute()
     return jsonify(success=True, categories=[_map_row(r) for r in (res.data or [])])
+
+
+@categories_bp.post("")
+@require_admin
+def upsert_category():
+    """Categories aren't separately "created" by admins — the button for
+    each one always exists (driven by the product category list) and this
+    just attaches optional display metadata to it, keyed by name."""
+    body = request.get_json(silent=True) or {}
+    name = (body.get("name") or "").strip()
+    if not name:
+        return jsonify(success=False, error="name is required."), 400
+
+    payload = {"name": name}
+    if "imageUrl" in body:
+        payload["image_url"] = body.get("imageUrl")
+    if "isActive" in body:
+        payload["is_active"] = body.get("isActive")
+    if "sortOrder" in body:
+        payload["sort_order"] = body.get("sortOrder")
+
+    db = get_admin_client()
+    res = db.table("categories").upsert(payload, on_conflict="name").execute()
+    if not res.data:
+        return jsonify(success=False, error="Could not save category."), 500
+    return jsonify(success=True, category=_map_row(res.data[0]))

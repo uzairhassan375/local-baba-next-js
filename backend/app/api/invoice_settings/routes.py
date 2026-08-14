@@ -1,14 +1,12 @@
 import re
 import time
 import uuid
-from urllib.parse import quote
 
-import requests
 from flask import Blueprint, g, jsonify, request
 from postgrest.exceptions import APIError
 
 from ...core.auth import is_admin, require_auth
-from ...core.config import config
+from ...core.bunny import BunnyNotConfigured, BunnyUploadError, upload_bytes
 from ...core.supabase_client import get_admin_client
 
 invoice_settings_bp = Blueprint("invoice_settings", __name__)
@@ -104,30 +102,17 @@ def upload_logo():
     if len(data) > 10 * 1024 * 1024:
         return jsonify(success=False, error="File size exceeds 10 MB limit."), 400
 
-    api_key = config.BUNNY_STORAGE_API_KEY
-    api_base = config.BUNNY_STORAGE_API_BASE.rstrip("/")
-    cdn_base = config.BUNNY_STORAGE_CDN_BASE.rstrip("/")
-    if not api_key or not api_base or not cdn_base:
-        return jsonify(success=False, error="Storage is not configured on the server."), 500
-
     safe_name = re.sub(r"[^\w.-]+", "_", file.filename)
     object_path = f"{g.user['id']}/misc/{int(time.time() * 1000)}-{uuid.uuid4().hex}-{safe_name}"
-    encoded_path = quote(object_path, safe="/")
 
     try:
-        upstream = requests.put(
-            f"{api_base}/{encoded_path}",
-            data=data,
-            headers={"AccessKey": api_key, "Content-Type": file.mimetype or "application/octet-stream"},
-            timeout=30,
-        )
-    except requests.RequestException:
+        url = upload_bytes(data, file.mimetype or "application/octet-stream", object_path)
+    except BunnyNotConfigured:
+        return jsonify(success=False, error="Storage is not configured on the server."), 500
+    except BunnyUploadError:
         return jsonify(success=False, error="Failed to upload logo."), 502
 
-    if not upstream.ok:
-        return jsonify(success=False, error="Failed to upload logo."), 502
-
-    return jsonify(success=True, url=f"{cdn_base}/{encoded_path}")
+    return jsonify(success=True, url=url)
 
 
 @invoice_settings_bp.delete("")

@@ -1,9 +1,12 @@
 import re
+import time
+import uuid
 from datetime import datetime, timezone
 
 from flask import Blueprint, g, jsonify, request
 
 from ...core.auth import is_admin, require_admin, require_auth
+from ...core.bunny import BunnyNotConfigured, BunnyUploadError, upload_bytes
 from ...core.notifications import create_notification
 from ...core.supabase_client import get_admin_client
 
@@ -15,6 +18,33 @@ DEFAULT_BANK = {
     "account_title": "The Local Baba Trading",
     "iban": "PK00MEZN000123456789",
 }
+
+MAX_PAYMENT_PROOF_BYTES = 10 * 1024 * 1024
+
+
+@subscriptions_bp.post("/payment-proof")
+def upload_payment_proof():
+    file = request.files.get("file")
+    if not file or not file.filename:
+        return jsonify(success=False, error="No image file provided"), 400
+    if not (file.mimetype or "").startswith("image/"):
+        return jsonify(success=False, error="File must be an image (PNG, JPG, WEBP)"), 400
+
+    data = file.read()
+    if len(data) > MAX_PAYMENT_PROOF_BYTES:
+        return jsonify(success=False, error="File size exceeds 10 MB limit"), 400
+
+    safe_name = re.sub(r"[^\w.-]+", "_", file.filename)
+    object_path = f"subscription_payments/{int(time.time() * 1000)}-{uuid.uuid4().hex}-{safe_name}"
+
+    try:
+        url = upload_bytes(data, file.mimetype or "application/octet-stream", object_path)
+    except BunnyNotConfigured:
+        return jsonify(success=False, error="Storage is not configured. Please contact support."), 500
+    except BunnyUploadError:
+        return jsonify(success=False, error="Failed to upload payment proof. Please try again."), 502
+
+    return jsonify(success=True, url=url)
 
 
 def _now_iso() -> str:

@@ -7,80 +7,73 @@ export interface Banner {
   isActive: boolean;
 }
 
-type BannerRow = {
-  id: string;
-  image_url: string;
-  sort_order: number;
-  is_active: boolean;
-};
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
-function mapRowToBanner(row: BannerRow): Banner {
-  return {
-    id: row.id,
-    imageUrl: row.image_url,
-    sortOrder: row.sort_order ?? 0,
-    isActive: row.is_active ?? true,
-  };
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await createClient().auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 /** Admin view — every banner, including inactive ones, in display order. */
 export async function fetchAdminBanners(): Promise<Banner[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("mobile_banners")
-    .select("*")
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  return (data as BannerRow[]).map(mapRowToBanner);
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/mobile-banners`, { headers, cache: "no-store" });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; banners?: Banner[]; error?: string };
+  if (!res.ok || !body.success) throw new Error(body.error || "Could not load banners.");
+  return body.banners || [];
 }
 
 export async function insertBanner(payload: { imageUrl: string; sortOrder?: number }): Promise<Banner> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("mobile_banners")
-    .insert({ image_url: payload.imageUrl, sort_order: payload.sortOrder ?? 0 })
-    .select("*")
-    .single();
-  if (error) throw error;
-  return mapRowToBanner(data as BannerRow);
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/mobile-banners`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify(payload),
+  });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; banner?: Banner; error?: string };
+  if (!res.ok || !body.success || !body.banner) throw new Error(body.error || "Could not create banner.");
+  return body.banner;
 }
 
 export async function updateBanner(
   id: string,
   payload: { sortOrder?: number; isActive?: boolean },
 ): Promise<Banner> {
-  const supabase = createClient();
-  const updates: Record<string, unknown> = {};
-  if (payload.sortOrder !== undefined) updates.sort_order = payload.sortOrder;
-  if (payload.isActive !== undefined) updates.is_active = payload.isActive;
-
-  const { data, error } = await supabase.from("mobile_banners").update(updates).eq("id", id).select("*").single();
-  if (error) throw error;
-  return mapRowToBanner(data as BannerRow);
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/mobile-banners/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify(payload),
+  });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; banner?: Banner; error?: string };
+  if (!res.ok || !body.success || !body.banner) throw new Error(body.error || "Could not update banner.");
+  return body.banner;
 }
 
 export async function deleteBanner(id: string): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase.from("mobile_banners").delete().eq("id", id);
-  if (error) throw error;
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/mobile-banners/${id}`, { method: "DELETE", headers });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+  if (!res.ok || !body.success) throw new Error(body.error || "Could not delete banner.");
 }
 
-/** Uploads a single banner image to Bunny CDN via the same upload-media
+/** Uploads a single banner image to Bunny CDN via the same media upload
  * route product/category images use, and returns its public URL. */
 export async function uploadBannerImage(file: File): Promise<string> {
+  const headers = await authHeaders();
   const form = new FormData();
   form.append("files", file);
   form.append("slug", "mobile-banners");
 
-  const res = await fetch("/api/upload-media", {
+  const res = await fetch(`${BACKEND_URL}/api/media/upload`, {
     method: "POST",
+    headers,
     body: form,
-    credentials: "include",
   });
 
-  const body = (await res.json().catch(() => ({}))) as { urls?: string[]; error?: string };
-  if (!res.ok || !body.urls?.length) {
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; urls?: string[]; error?: string };
+  if (!res.ok || !body.success || !body.urls?.length) {
     throw new Error(body.error || "Image upload failed");
   }
   return body.urls[0];

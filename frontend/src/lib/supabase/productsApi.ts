@@ -1,31 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import type { Product } from "@/data/mockData";
 
-type ProductRow = {
-  id: string;
-  sku?: string | null;
-  slug: string;
-  name: string;
-  category: string;
-  price_per_pc: number | string;
-  market_rate: number | string;
-  moq: number;
-  stock: number;
-  status: Product["status"];
-  tags: unknown;
-  variants: unknown;
-  images: unknown;
-  description: string;
-  specs: unknown;
-  seller_tips: unknown;
-  show_in_trending: boolean;
-  trending_sort: number;
-  catalog_type?: string | null;
-  show_on_landing?: boolean;
-  landing_sort?: number;
-  show_in_category_home?: boolean;
-};
-
 function asTags(v: unknown): Product["tags"] {
   const allowed = new Set(["new", "hot", "featured", "low_stock"]);
   if (!Array.isArray(v)) return [];
@@ -63,24 +38,55 @@ function asStringArray(v: unknown): string[] {
   return v.filter((x): x is string => typeof x === "string");
 }
 
-function fallbackSku(row: ProductRow): string {
-  const fromSlug = row.slug
+function fallbackSku(slug: string): string {
+  const fromSlug = slug
     .replace(/[^a-z0-9]+/gi, "")
     .toUpperCase()
     .slice(0, 12);
   return `TLB-${fromSlug || "ITEM"}`;
 }
 
-export function mapRowToProduct(row: ProductRow): Product {
-  const sku = row.sku?.trim() ? row.sku.trim() : fallbackSku(row);
+function placeholderImage() {
+  return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop";
+}
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
+type ApiProductRow = {
+  id: string;
+  sku: string | null;
+  slug: string;
+  name: string;
+  category: string;
+  pricePerPc: number;
+  marketRate: number;
+  moq: number;
+  stock: number;
+  status: Product["status"];
+  tags: unknown;
+  variants: unknown;
+  images: unknown;
+  description: string;
+  specs: unknown;
+  sellerTips: unknown;
+  showInTrending: boolean;
+  trendingSort: number;
+  catalogType: "standard" | "china";
+  showOnLanding: boolean;
+  landingSort: number;
+  showInCategoryHome: boolean;
+};
+
+function mapApiRowToProduct(row: ApiProductRow): Product {
+  const sku = row.sku?.trim() ? row.sku.trim() : fallbackSku(row.slug);
   return {
     id: row.id,
     sku,
     slug: row.slug,
     name: row.name,
     category: row.category,
-    pricePerPc: Number(row.price_per_pc),
-    marketRate: Number(row.market_rate),
+    pricePerPc: Number(row.pricePerPc),
+    marketRate: Number(row.marketRate),
     moq: row.moq,
     stock: row.stock,
     status: row.status,
@@ -89,78 +95,57 @@ export function mapRowToProduct(row: ProductRow): Product {
     images: asStringArray(row.images).length ? asStringArray(row.images) : [placeholderImage()],
     description: row.description || "",
     specs: asSpecs(row.specs),
-    sellerTips: asStringArray(row.seller_tips),
-    showInTrending: row.show_in_trending ?? false,
-    trendingSort: row.trending_sort ?? 0,
-    catalogType: row.catalog_type === "china" ? "china" : "standard",
-    showOnLanding: row.show_on_landing ?? false,
-    landingSort: row.landing_sort ?? 0,
-    showInCategoryHome: row.show_in_category_home ?? false,
+    sellerTips: asStringArray(row.sellerTips),
+    showInTrending: row.showInTrending ?? false,
+    trendingSort: row.trendingSort ?? 0,
+    catalogType: row.catalogType === "china" ? "china" : "standard",
+    showOnLanding: row.showOnLanding ?? false,
+    landingSort: row.landingSort ?? 0,
+    showInCategoryHome: row.showInCategoryHome ?? false,
   };
 }
 
-function placeholderImage() {
-  return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop";
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await createClient().auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+async function fetchProducts(params: Record<string, string>, auth: boolean): Promise<Product[]> {
+  const headers = auth ? await authHeaders() : {};
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(`${BACKEND_URL}/api/products${qs ? `?${qs}` : ""}`, { headers, cache: "no-store" });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; products?: ApiProductRow[]; error?: string };
+  if (!res.ok || !body.success) throw new Error(body.error || "Could not load products.");
+  return (body.products || []).map(mapApiRowToProduct);
+}
+
+/** Active/sold-out products only — used by public/member catalogue browsing.
+ * Deliberately unauthenticated so admins browsing the storefront see the
+ * same visible-only set everyone else does. */
 export async function fetchCatalogProductsFromDb(): Promise<Product[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .in("status", ["active", "sold_out"])
-    .order("updated_at", { ascending: false });
-  if (error) throw error;
-  return (data as ProductRow[]).map(mapRowToProduct);
+  return fetchProducts({}, false);
 }
 
 export async function fetchAdminProductsFromDb(): Promise<Product[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase.from("products").select("*").order("updated_at", { ascending: false });
-  if (error) throw error;
-  return (data as ProductRow[]).map(mapRowToProduct);
+  return fetchProducts({}, true);
 }
 
 export async function fetchTrendingThisWeek(): Promise<Product[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("show_in_trending", true)
-    .eq("status", "active")
-    .order("trending_sort", { ascending: false })
-    .order("updated_at", { ascending: false })
-    .limit(8);
-  if (error) throw error;
-  return (data as ProductRow[]).map(mapRowToProduct);
+  return fetchProducts({ trending: "true", limit: "8" }, false);
 }
 
 /** Active products curated by admin for the public landing page. */
 export async function fetchLandingProducts(): Promise<Product[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("show_on_landing", true)
-    .eq("status", "active")
-    .order("landing_sort", { ascending: false })
-    .order("updated_at", { ascending: false })
-    .limit(12);
-  if (error) throw error;
-  return (data as ProductRow[]).map(mapRowToProduct);
+  return fetchProducts({ landing: "true", limit: "12" }, false);
 }
 
 export async function fetchProductBySlugFromDb(slug: string): Promise<Product | null> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("slug", slug)
-    .in("status", ["active", "sold_out"])
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return null;
-  return mapRowToProduct(data as ProductRow);
+  const res = await fetch(`${BACKEND_URL}/api/products/${encodeURIComponent(slug)}`, { cache: "no-store" });
+  if (res.status === 404) return null;
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; product?: ApiProductRow; error?: string };
+  if (!res.ok || !body.success || !body.product) return null;
+  return mapApiRowToProduct(body.product);
 }
 
 export type ProductPayload = {
@@ -245,25 +230,35 @@ export function productToPayload(p: {
   };
 }
 
+async function writeProduct(
+  method: "POST" | "PATCH" | "DELETE",
+  path: string,
+  payload?: Record<string, unknown>,
+): Promise<ApiProductRow | null> {
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/products${path}`, {
+    method,
+    headers: { "Content-Type": "application/json", ...headers },
+    ...(payload ? { body: JSON.stringify(payload) } : {}),
+  });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; product?: ApiProductRow; error?: string };
+  if (!res.ok || !body.success) throw new Error(body.error || "Could not save product.");
+  return body.product ?? null;
+}
+
 export async function insertProduct(payload: ProductPayload): Promise<Product> {
-  const supabase = createClient();
-  const { data, error } = await supabase.from("products").insert(payload).select("*").single();
-  if (error) throw error;
-  return mapRowToProduct(data as ProductRow);
+  const row = await writeProduct("POST", "", payload);
+  return mapApiRowToProduct(row!);
 }
 
 export async function updateProduct(id: string, payload: ProductPayload): Promise<Product> {
-  const supabase = createClient();
-  const { data, error } = await supabase.from("products").update(payload).eq("id", id).select("*").single();
-  if (error) throw error;
-  return mapRowToProduct(data as ProductRow);
+  const row = await writeProduct("PATCH", `/${id}`, payload);
+  return mapApiRowToProduct(row!);
 }
 
 /** Partial update used by bulk price/MOQ sheet. */
 export async function patchProductPriceAndMoq(id: string, pricePerPc: number, moq: number): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase.from("products").update({ price_per_pc: pricePerPc, moq }).eq("id", id);
-  if (error) throw error;
+  await writeProduct("PATCH", `/${id}`, { price_per_pc: pricePerPc, moq });
 }
 
 /** Quick toggle from admin product table. */
@@ -272,53 +267,38 @@ export async function patchProductLanding(
   showOnLanding: boolean,
   landingSort?: number,
 ): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase
-    .from("products")
-    .update({
-      show_on_landing: showOnLanding,
-      ...(landingSort !== undefined ? { landing_sort: landingSort } : {}),
-    })
-    .eq("id", id);
-  if (error) throw error;
+  await writeProduct("PATCH", `/${id}`, {
+    show_on_landing: showOnLanding,
+    ...(landingSort !== undefined ? { landing_sort: landingSort } : {}),
+  });
 }
 
 /** Quick toggle from the admin Categories page — whether a product appears
  * in its category's curated home-page collection row on the mobile app. */
 export async function patchProductCategoryHome(id: string, showInCategoryHome: boolean): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase
-    .from("products")
-    .update({ show_in_category_home: showInCategoryHome })
-    .eq("id", id);
-  if (error) throw error;
+  await writeProduct("PATCH", `/${id}`, { show_in_category_home: showInCategoryHome });
 }
 
 export async function deleteProduct(id: string): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase.from("products").delete().eq("id", id);
-  if (error) throw error;
+  await writeProduct("DELETE", `/${id}`);
 }
 
 export async function uploadProductImages(files: File[], slug?: string): Promise<string[]> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("You must be signed in as admin to upload images.");
+  const headers = await authHeaders();
+  if (!headers.Authorization) throw new Error("You must be signed in as admin to upload images.");
 
   const form = new FormData();
   for (const file of files) form.append("files", file);
   if (slug) form.append("slug", slug);
 
-  const res = await fetch("/api/upload-media", {
+  const res = await fetch(`${BACKEND_URL}/api/media/upload`, {
     method: "POST",
+    headers,
     body: form,
-    credentials: "include",
   });
 
-  const body = (await res.json().catch(() => ({}))) as { urls?: string[]; error?: string };
-  if (!res.ok) {
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; urls?: string[]; error?: string };
+  if (!res.ok || !body.success) {
     throw new Error(body.error || "Upload failed");
   }
   if (!body.urls?.length) {
@@ -335,15 +315,15 @@ export async function uploadProductImages(files: File[], slug?: string): Promise
 export async function rehostImageUrlsToBunny(urls: string[], slug?: string): Promise<string[]> {
   if (!urls.length) return urls;
 
-  const res = await fetch("/api/admin/import-images", {
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/media/import`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
+    headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify({ urls, slug, purpose: "products" }),
   });
 
-  const body = (await res.json().catch(() => ({}))) as { urls?: string[]; error?: string };
-  if (!res.ok || !body.urls?.length) {
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; urls?: string[]; error?: string };
+  if (!res.ok || !body.success || !body.urls?.length) {
     throw new Error(body.error || "Could not import pasted image URLs to storage.");
   }
   return body.urls;

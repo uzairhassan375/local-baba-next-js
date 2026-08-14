@@ -1,5 +1,13 @@
 import { createClient } from "@/lib/supabase/client";
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await createClient().auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export type BlastStatus = "draft" | "published" | "archived";
 
 export type Blast = {
@@ -12,35 +20,6 @@ export type Blast = {
   createdAt: string;
   updatedAt: string;
 };
-
-type BlastRow = {
-  id: string;
-  title: string;
-  body: string;
-  target_cities: unknown;
-  status: BlastStatus;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-};
-
-function asStringArray(v: unknown): string[] {
-  if (!Array.isArray(v)) return [];
-  return v.filter((x): x is string => typeof x === "string");
-}
-
-export function mapRowToBlast(row: BlastRow): Blast {
-  return {
-    id: row.id,
-    title: row.title ?? "",
-    body: row.body,
-    targetCities: asStringArray(row.target_cities),
-    status: row.status,
-    sortOrder: row.sort_order ?? 0,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
 
 /** Empty target_cities = show to all members. */
 export function blastVisibleForMemberCity(blast: Blast, memberCity: string | undefined): boolean {
@@ -58,41 +37,50 @@ export type BlastPayload = {
   sort_order: number;
 };
 
+async function fetchBlasts(): Promise<Blast[]> {
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/blasts`, { headers, cache: "no-store" });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; blasts?: Blast[]; error?: string };
+  if (!res.ok || !body.success) throw new Error(body.error || "Could not load blasts.");
+  return body.blasts || [];
+}
+
+/** Same endpoint for both — the backend filters to published-only for non-admins. */
 export async function fetchPublishedBlasts(): Promise<Blast[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("blasts")
-    .select("*")
-    .eq("status", "published")
-    .order("sort_order", { ascending: false })
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data as BlastRow[]).map(mapRowToBlast);
+  return fetchBlasts();
 }
 
 export async function fetchAdminBlasts(): Promise<Blast[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase.from("blasts").select("*").order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data as BlastRow[]).map(mapRowToBlast);
+  return fetchBlasts();
 }
 
 export async function insertBlast(payload: BlastPayload): Promise<Blast> {
-  const supabase = createClient();
-  const { data, error } = await supabase.from("blasts").insert(payload).select("*").single();
-  if (error) throw error;
-  return mapRowToBlast(data as BlastRow);
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/blasts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify(payload),
+  });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; blast?: Blast; error?: string };
+  if (!res.ok || !body.success || !body.blast) throw new Error(body.error || "Could not create blast.");
+  return body.blast;
 }
 
 export async function updateBlast(id: string, payload: BlastPayload): Promise<Blast> {
-  const supabase = createClient();
-  const { data, error } = await supabase.from("blasts").update(payload).eq("id", id).select("*").single();
-  if (error) throw error;
-  return mapRowToBlast(data as BlastRow);
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/blasts/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify(payload),
+  });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; blast?: Blast; error?: string };
+  if (!res.ok || !body.success || !body.blast) throw new Error(body.error || "Could not update blast.");
+  return body.blast;
 }
 
 export async function deleteBlast(id: string): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase.from("blasts").delete().eq("id", id);
-  if (error) throw error;
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/blasts/${id}`, { method: "DELETE", headers });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+  if (!res.ok || !body.success) throw new Error(body.error || "Could not delete blast.");
 }

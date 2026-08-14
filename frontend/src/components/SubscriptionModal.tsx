@@ -99,7 +99,8 @@ export function SubscriptionModal({
       const formData = new FormData();
       formData.append("file", file);
 
-      const uploadRes = await fetch("/api/upload-payment-proof", {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+      const uploadRes = await fetch(`${backendUrl}/api/subscriptions/payment-proof`, {
         method: "POST",
         body: formData,
       });

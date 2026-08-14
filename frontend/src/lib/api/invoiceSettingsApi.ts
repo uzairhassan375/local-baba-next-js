@@ -2,7 +2,8 @@
 // never direct Supabase or Bunny CDN directly — same convention as
 // favoritesApi.ts / cartApi.ts, and the same backend the Flutter app talks
 // to, so both platforms hit the local backend when developing and the
-// deployed (Render) one in production.
+// deployed (Render) one in production. The browser never holds Bunny
+// credentials at all; only the Flask backend does.
 //
 // Admin edits the platform-wide default (the singleton row); members
 // instead get their own row keyed by member_id, so each member can brand

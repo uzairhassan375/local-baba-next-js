@@ -5,7 +5,7 @@ import { User, MapPin, Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile, type SavedAddress } from "@/contexts/ProfileContext";
 import { createClient } from "@/lib/supabase/client";
-import { updateMemberProfile } from "@/lib/supabase/applicationsApi";
+import { fetchMyMembershipApplicationForUser, updateMemberProfile } from "@/lib/supabase/applicationsApi";
 import { cities } from "@/data/mockData";
 
 const emptyAddress = (): Omit<SavedAddress, "id"> => ({
@@ -46,13 +46,9 @@ export default function ProfilePage() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase
-        .from("membership_applications")
-        .select("business_name")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      if (data?.business_name) {
-        setProfileForm(f => ({ ...f, businessName: data.business_name }));
+      const app = await fetchMyMembershipApplicationForUser(user.id).catch(() => null);
+      if (app?.businessName) {
+        setProfileForm(f => ({ ...f, businessName: app.businessName }));
       }
     })();
   }, [member]);

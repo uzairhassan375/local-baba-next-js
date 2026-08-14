@@ -18,6 +18,15 @@ import { Label } from "@/components/ui/label";
 import { insertProduct, productToPayload, slugify } from "@/lib/supabase/productsApi";
 import type { Product } from "@/data/mockData";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await createClient().auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 const PRODUCT_CATEGORIES = ["Fashion", "Electronics", "Home", "Beauty", "Kids"];
 const TAG_OPTIONS: Product["tags"][number][] = ["new", "hot", "featured", "low_stock"];
@@ -241,10 +250,11 @@ export function AddProductByAI({
       const form = new FormData();
       form.append("image", file);
       form.append("productDetails", details);
-      const res = await fetch("/api/admin/generate-listing", {
+      const headers = await authHeaders();
+      const res = await fetch(`${BACKEND_URL}/api/admin/generate-listing`, {
         method: "POST",
+        headers,
         body: form,
-        credentials: "include",
       });
       const body = (await res.json().catch(() => ({}))) as GenerateResponse;
       if (!res.ok) {
@@ -356,17 +366,18 @@ export function AddProductByAI({
     try {
       const slug = `${slugify(name)}-${crypto.randomUUID().slice(0, 6)}`;
 
-      const importRes = await fetch("/api/admin/import-images", {
+      const headers = await authHeaders();
+      const importRes = await fetch(`${BACKEND_URL}/api/media/import`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...headers },
         body: JSON.stringify({ urls: selected, slug }),
       });
       const importBody = (await importRes.json().catch(() => ({}))) as {
+        success?: boolean;
         urls?: string[];
         error?: string;
       };
-      if (!importRes.ok) {
+      if (!importRes.ok || !importBody.success) {
         throw new Error(importBody.error || "Failed to save images to Bunny");
       }
       const bunnyUrls = importBody.urls ?? [];

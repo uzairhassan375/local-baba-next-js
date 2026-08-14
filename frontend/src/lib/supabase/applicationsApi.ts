@@ -2,43 +2,49 @@ import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { Application, Member } from "@/data/mockData";
 
-type ApplicationRow = {
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await createClient().auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+type ApiApplicationRow = {
   id: string;
   name: string;
   whatsapp: string;
   city: string;
-  business_name: string;
-  sells_what: unknown;
-  sells_where: unknown;
-  monthly_volume: string;
-  heard_from: string;
-  applied_at: string;
+  businessName: string;
+  sellsWhat: unknown;
+  sellsWhere: unknown;
+  monthlyVolume: string;
+  heardFrom: string;
+  appliedAt: string;
   status: Application["status"];
-  decided_at: string | null;
-  auth_user_id?: string | null;
   email?: string | null;
 };
 
-function asStringArray(v: unknown): string[] {
-  if (!Array.isArray(v)) return [];
-  return v.filter((x): x is string => typeof x === "string");
-}
-
-export function mapRowToApplication(row: ApplicationRow): Application {
+function mapApiRowToApplication(row: ApiApplicationRow): Application {
   return {
     id: row.id,
     name: row.name,
     whatsapp: row.whatsapp,
     city: row.city,
-    businessName: row.business_name,
-    sellsWhat: asStringArray(row.sells_what),
-    sellsWhere: asStringArray(row.sells_where),
-    monthlyVolume: row.monthly_volume,
-    heardFrom: row.heard_from || "",
-    appliedAt: row.applied_at,
+    businessName: row.businessName,
+    sellsWhat: asStringArray(row.sellsWhat),
+    sellsWhere: asStringArray(row.sellsWhere),
+    monthlyVolume: row.monthlyVolume,
+    heardFrom: row.heardFrom || "",
+    appliedAt: row.appliedAt,
     status: row.status,
     email: row.email ?? undefined,
   };
+}
+
+function asStringArray(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter((x): x is string => typeof x === "string");
 }
 
 export function applicationToMember(app: Application): Member {
@@ -74,12 +80,45 @@ export type NewApplicationPayload = {
 };
 
 export async function submitMembershipApplication(payload: NewApplicationPayload): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase.from("membership_applications").insert({
-    ...payload,
-    status: "pending",
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/applications`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify({
+      name: payload.name,
+      whatsapp: payload.whatsapp,
+      city: payload.city,
+      businessName: payload.business_name,
+      sellsWhat: payload.sells_what,
+      sellsWhere: payload.sells_where,
+      monthlyVolume: payload.monthly_volume,
+      heardFrom: payload.heard_from,
+    }),
   });
-  if (error) throw error;
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+  if (!res.ok || !body.success) throw new Error(body.error || "Could not submit application.");
+}
+
+/** Creates the auto-approved membership row right after signup, using the
+ * given session's own token directly rather than re-reading it from
+ * storage — avoids any race with a session that was just minted. */
+async function registerMembership(session: Session, rest: NewApplicationPayload): Promise<void> {
+  const res = await fetch(`${BACKEND_URL}/api/applications/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify({
+      name: rest.name,
+      whatsapp: rest.whatsapp,
+      city: rest.city,
+      businessName: rest.business_name,
+      sellsWhat: rest.sells_what,
+      sellsWhere: rest.sells_where,
+      monthlyVolume: rest.monthly_volume,
+      heardFrom: rest.heard_from,
+    }),
+  });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+  if (!res.ok || !body.success) throw new Error(body.error || "Could not register membership.");
 }
 
 export type RegisterMemberPayload = NewApplicationPayload & {
@@ -145,25 +184,16 @@ export async function tryInsertMembershipFromSignupMetadata(session: Session): P
   const email = session.user.email?.trim().toLowerCase();
   if (!email) return false;
 
-  const supabase = createClient();
-  const uid = session.user.id;
-
-  const { error } = await supabase.from("membership_applications").insert({
-    ...rest,
-    email,
-    auth_user_id: uid,
-    status: "approved",
-    decided_at: new Date().toISOString(),
-  });
-
-  if (error) {
-    // Row may already exist (e.g. retry) — treat unique violations as success
-    if (error.code !== "23505") {
-      console.error("Membership insert from signup metadata failed:", error.message);
-      return false;
-    }
+  try {
+    await registerMembership(session, rest);
+  } catch (err) {
+    // The backend treats "row already exists" (e.g. retry) as success too,
+    // so a thrown error here means a genuine failure.
+    console.error("Membership insert from signup metadata failed:", err);
+    return false;
   }
 
+  const supabase = createClient();
   const { error: metaErr } = await supabase.auth.updateUser({
     data: { [REGISTRATION_META_KEY]: null },
   });
@@ -204,17 +234,11 @@ export async function registerMember(payload: RegisterMemberPayload): Promise<Re
     return { flow: "awaiting_email_confirmation" };
   }
 
-  const uid = data.user.id;
-  const { error: insErr } = await supabase.from("membership_applications").insert({
-    ...rest,
-    email: emailNorm,
-    auth_user_id: uid,
-    status: "approved",
-    decided_at: new Date().toISOString(),
-  });
-  if (insErr) {
+  try {
+    await registerMembership(data.session, rest);
+  } catch (err) {
     await supabase.auth.signOut();
-    throw insErr;
+    throw err;
   }
 
   await supabase.auth.updateUser({ data: { [REGISTRATION_META_KEY]: null } }).catch(() => undefined);
@@ -222,38 +246,39 @@ export async function registerMember(payload: RegisterMemberPayload): Promise<Re
   return { flow: "session_ready" };
 }
 
+/** `userId` is unused (identity is derived from the bearer token
+ * server-side) but kept in the signature since every call site already has
+ * it and it documents that this fetches the *caller's own* application. */
 export async function fetchMyMembershipApplicationForUser(userId: string): Promise<Application | null> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("membership_applications")
-    .select("*")
-    .eq("auth_user_id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return null;
-  return mapRowToApplication(data as ApplicationRow);
+  void userId;
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/profile`, { headers, cache: "no-store" });
+  if (res.status === 404) return null;
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; profile?: ApiApplicationRow; error?: string };
+  if (!res.ok || !body.success || !body.profile) return null;
+  return mapApiRowToApplication(body.profile);
 }
 
 export async function fetchMembershipApplications(): Promise<Application[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("membership_applications")
-    .select("*")
-    .order("applied_at", { ascending: false });
-  if (error) throw error;
-  return (data as ApplicationRow[]).map(mapRowToApplication);
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/applications`, { headers, cache: "no-store" });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; applications?: ApiApplicationRow[]; error?: string };
+  if (!res.ok || !body.success) throw new Error(body.error || "Could not load applications.");
+  return (body.applications || []).map(mapApiRowToApplication);
 }
 
 export async function updateApplicationStatus(
   id: string,
   status: "approved" | "rejected",
 ): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase
-    .from("membership_applications")
-    .update({ status, decided_at: new Date().toISOString() })
-    .eq("id", id);
-  if (error) throw error;
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/applications/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify({ status }),
+  });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+  if (!res.ok || !body.success) throw new Error(body.error || "Could not update application status.");
 }
 
 export type MemberProfileUpdate = {
@@ -263,20 +288,22 @@ export type MemberProfileUpdate = {
   business_name: string;
 };
 
+/** `userId` is unused (identity is derived from the bearer token
+ * server-side) but kept in the signature to match the caller. */
 export async function updateMemberProfile(userId: string, payload: MemberProfileUpdate): Promise<Application> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("membership_applications")
-    .update({
-      name: payload.name.trim(),
-      whatsapp: payload.whatsapp.replace(/\D/g, ""),
+  void userId;
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/profile`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify({
+      name: payload.name,
+      whatsapp: payload.whatsapp,
       city: payload.city,
-      business_name: payload.business_name.trim(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("auth_user_id", userId)
-    .select("*")
-    .single();
-  if (error) throw error;
-  return mapRowToApplication(data as ApplicationRow);
+      businessName: payload.business_name,
+    }),
+  });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; profile?: ApiApplicationRow; error?: string };
+  if (!res.ok || !body.success || !body.profile) throw new Error(body.error || "Could not update profile.");
+  return mapApiRowToApplication(body.profile);
 }

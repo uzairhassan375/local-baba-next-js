@@ -8,34 +8,21 @@ export interface Category {
   isActive: boolean;
 }
 
-type CategoryRow = {
-  id: string;
-  name: string;
-  image_url: string | null;
-  sort_order: number;
-  is_active: boolean;
-};
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
-function mapRowToCategory(row: CategoryRow): Category {
-  return {
-    id: row.id,
-    name: row.name,
-    imageUrl: row.image_url,
-    sortOrder: row.sort_order ?? 0,
-    isActive: row.is_active ?? true,
-  };
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await createClient().auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 /** Admin view — every category, including inactive ones, in display order. */
 export async function fetchAdminCategories(): Promise<Category[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("categories")
-    .select("*")
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  return (data as CategoryRow[]).map(mapRowToCategory);
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/categories`, { headers, cache: "no-store" });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; categories?: Category[]; error?: string };
+  if (!res.ok || !body.success) throw new Error(body.error || "Could not load categories.");
+  return body.categories || [];
 }
 
 /** Set a category's image/visibility by name — creates the row on first use
@@ -47,39 +34,33 @@ export async function upsertCategory(
   name: string,
   payload: { imageUrl?: string | null; isActive?: boolean; sortOrder?: number },
 ): Promise<Category> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("categories")
-    .upsert(
-      {
-        name: name.trim(),
-        ...(payload.imageUrl !== undefined ? { image_url: payload.imageUrl } : {}),
-        ...(payload.isActive !== undefined ? { is_active: payload.isActive } : {}),
-        ...(payload.sortOrder !== undefined ? { sort_order: payload.sortOrder } : {}),
-      },
-      { onConflict: "name" },
-    )
-    .select("*")
-    .single();
-  if (error) throw error;
-  return mapRowToCategory(data as CategoryRow);
+  const headers = await authHeaders();
+  const res = await fetch(`${BACKEND_URL}/api/categories`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify({ name: name.trim(), ...payload }),
+  });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; category?: Category; error?: string };
+  if (!res.ok || !body.success || !body.category) throw new Error(body.error || "Could not save category.");
+  return body.category;
 }
 
 /** Uploads a single category cover image to Bunny CDN via the same
- * upload-media route product images use, and returns its public URL. */
+ * media upload route product images use, and returns its public URL. */
 export async function uploadCategoryImage(file: File): Promise<string> {
+  const headers = await authHeaders();
   const form = new FormData();
   form.append("files", file);
   form.append("slug", "categories");
 
-  const res = await fetch("/api/upload-media", {
+  const res = await fetch(`${BACKEND_URL}/api/media/upload`, {
     method: "POST",
+    headers,
     body: form,
-    credentials: "include",
   });
 
-  const body = (await res.json().catch(() => ({}))) as { urls?: string[]; error?: string };
-  if (!res.ok || !body.urls?.length) {
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; urls?: string[]; error?: string };
+  if (!res.ok || !body.success || !body.urls?.length) {
     throw new Error(body.error || "Image upload failed");
   }
   return body.urls[0];

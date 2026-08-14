@@ -712,7 +712,7 @@ export default function AdminInvoicesPage() {
               <Receipt className="text-primary h-7 w-7" /> Admin Invoices & Billing
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Search member or product invoices from DB, edit unit prices/totals & sync back in real time.
+              Search, edit & print invoices.
             </p>
           </div>
 
@@ -756,7 +756,7 @@ export default function AdminInvoicesPage() {
           <div className="flex items-center gap-2">
             <Calendar size={16} className="text-primary" />
             <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-              Filter Summary Stats by Timeframe:
+              Timeframe:
             </span>
           </div>
 
@@ -789,7 +789,7 @@ export default function AdminInvoicesPage() {
                   : "bg-muted/50 text-muted-foreground hover:text-foreground border border-border"
               }`}
             >
-              1 Week (7 Days)
+              1 Week
             </button>
             <button
               onClick={() => setStatsTimeframe("month")}
@@ -799,7 +799,7 @@ export default function AdminInvoicesPage() {
                   : "bg-muted/50 text-muted-foreground hover:text-foreground border border-border"
               }`}
             >
-              1 Month (30 Days)
+              1 Month
             </button>
             <button
               onClick={() => setStatsTimeframe("custom")}
@@ -1151,13 +1151,6 @@ export default function AdminInvoicesPage() {
 
                       {/* Admin Unit Price & Delivery Editor Box */}
                       <div className="bg-card border border-border rounded-xl p-4 sm:p-5 shadow-xs space-y-4">
-                        <div className="p-2.5 bg-primary/10 border border-primary/20 rounded-lg text-xs text-foreground flex items-center gap-2">
-                          <Sparkles size={16} className="text-primary shrink-0" />
-                          <span>
-                            <strong>Real-time DB Sync:</strong> Any updates to unit prices, quantities, delivery, or discount save to Supabase and immediately update the member&apos;s view!
-                          </span>
-                        </div>
-
                         <div className="space-y-3">
                           <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
                             Edit Item Unit Prices & Quantities
@@ -1826,28 +1819,35 @@ export default function AdminInvoicesPage() {
                               )}
                             </div>
 
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="number"
-                                placeholder="Qty"
-                                value={item.qty || ""}
-                                onChange={e => handleUpdateManualItem(idx, "qty", e.target.value)}
-                                className="h-8 w-16 text-right font-mono bg-background"
-                              />
-                              <Input
-                                type="number"
-                                placeholder="Rate (Rs)"
-                                value={item.rate || ""}
-                                onChange={e => handleUpdateManualItem(idx, "rate", e.target.value)}
-                                className="h-8 w-24 text-right font-mono bg-background"
-                              />
-                              <span className="w-20 text-right font-mono font-bold text-foreground">
-                                Rs {((Number(item.qty) || 0) * (Number(item.rate) || 0)).toLocaleString()}
-                              </span>
+                            <div className="flex items-end gap-2">
+                              <div>
+                                <label className="text-[10px] text-muted-foreground block mb-0.5">Qty</label>
+                                <Input
+                                  type="number"
+                                  value={item.qty || ""}
+                                  onChange={e => handleUpdateManualItem(idx, "qty", e.target.value)}
+                                  className="h-8 w-16 text-right font-mono bg-background"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-muted-foreground block mb-0.5">Rate (Rs)</label>
+                                <Input
+                                  type="number"
+                                  value={item.rate || ""}
+                                  onChange={e => handleUpdateManualItem(idx, "rate", e.target.value)}
+                                  className="h-8 w-24 text-right font-mono bg-background"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-muted-foreground block mb-0.5">Amount</label>
+                                <span className="h-8 w-20 flex items-center justify-end font-mono font-bold text-foreground">
+                                  Rs {((Number(item.qty) || 0) * (Number(item.rate) || 0)).toLocaleString()}
+                                </span>
+                              </div>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveManualItem(idx)}
-                                className="p-1.5 text-muted-foreground hover:text-danger rounded"
+                                className="h-8 p-1.5 text-muted-foreground hover:text-danger rounded self-end"
                               >
                                 <Trash2 size={16} />
                               </button>

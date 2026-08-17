@@ -2,7 +2,7 @@ import json
 
 import requests
 
-GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"]
+GEMINI_MODELS = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-2.0-flash"]
 GEMINI_TIMEOUT_SECONDS = 45
 SERP_TIMEOUT_SECONDS = 45
 

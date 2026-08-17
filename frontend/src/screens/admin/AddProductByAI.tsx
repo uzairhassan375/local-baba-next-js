@@ -251,11 +251,28 @@ export function AddProductByAI({
       form.append("image", file);
       form.append("productDetails", details);
       const headers = await authHeaders();
-      const res = await fetch(`${BACKEND_URL}/api/admin/generate-listing`, {
-        method: "POST",
-        headers,
-        body: form,
-      });
+      // Gemini + SerpAPI together can legitimately take over a minute, plus a
+      // possible Render cold start — but this must still resolve one way or
+      // another instead of leaving the "loading" step spinning forever if the
+      // backend or network genuinely stalls.
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 150_000);
+      let res: Response;
+      try {
+        res = await fetch(`${BACKEND_URL}/api/admin/generate-listing`, {
+          method: "POST",
+          headers,
+          body: form,
+          signal: controller.signal,
+        });
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          throw new Error("Generation timed out after 2.5 minutes. Please try again.");
+        }
+        throw err;
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
       const body = (await res.json().catch(() => ({}))) as GenerateResponse;
       if (!res.ok) {
         throw new Error(body.error || "Generation failed");

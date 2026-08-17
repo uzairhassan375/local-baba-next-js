@@ -5,13 +5,16 @@ import uuid
 import requests
 from flask import Blueprint, g, jsonify, request
 
-from ...core.auth import require_admin
+from ...core.auth import require_admin, require_auth
 from ...core.bunny import BunnyNotConfigured, BunnyUploadError, delete_by_url, get_bunny_config, upload_bytes
 
 media_bp = Blueprint("media", __name__)
 
 MAX_FILES = 20
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024  # 100 MB — room for short product clips
+
+MAX_SELF_UPLOAD_BYTES = 15 * 1024 * 1024
+SELF_UPLOAD_PURPOSES = {"avatar", "payment-proof"}
 
 MAX_IMPORT_URLS = 20
 MAX_IMPORT_BYTES = 15 * 1024 * 1024
@@ -64,6 +67,40 @@ def upload():
             return jsonify(success=False, error=f"Upload failed for {file.filename}"), 502
 
     return jsonify(success=True, urls=urls)
+
+
+@media_bp.post("/upload-self")
+@require_auth
+def upload_self():
+    """Member-scoped single-image upload (profile avatar, payment proof
+    receipts) — unlike /upload above, this only requires a logged-in member,
+    not an admin, and writes into that member's own storage folder."""
+    file = request.files.get("file")
+    if not file:
+        return jsonify(success=False, error="No file uploaded"), 400
+
+    content_type = file.mimetype or ""
+    if not content_type.startswith("image/"):
+        return jsonify(success=False, error="Only image files are allowed"), 400
+
+    data = file.read()
+    if len(data) > MAX_SELF_UPLOAD_BYTES:
+        return jsonify(success=False, error="File too large"), 400
+
+    raw_purpose = request.form.get("purpose", "")
+    purpose = raw_purpose if raw_purpose in SELF_UPLOAD_PURPOSES else "misc"
+
+    safe_name = re.sub(r"[^\w.-]+", "_", file.filename or "file")
+    object_path = f"{g.user['id']}/{purpose}/{int(time.time() * 1000)}-{uuid.uuid4().hex}-{safe_name}"
+
+    try:
+        url = upload_bytes(data, content_type, object_path)
+    except BunnyNotConfigured:
+        return jsonify(success=False, error="Storage is not configured on the server."), 500
+    except BunnyUploadError:
+        return jsonify(success=False, error="Upload failed"), 502
+
+    return jsonify(success=True, url=url)
 
 
 def _fetch_image_bytes(url: str) -> tuple[bytes, str]:

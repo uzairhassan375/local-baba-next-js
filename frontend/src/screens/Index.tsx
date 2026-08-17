@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowUpRight,
@@ -117,12 +118,14 @@ function Hero({ products }: { products: Product[] }) {
   return (
     <section className="relative border-b border-border/60">
       <div className="pointer-events-none absolute inset-0">
-        <img
+        <Image
           src="/hero.jpg"
           alt=""
-          width={1600}
-          height={1200}
-          className="h-full w-full object-cover opacity-52"
+          fill
+          priority
+          fetchPriority="high"
+          sizes="100vw"
+          className="object-cover opacity-52"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/75 to-background/25" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
@@ -442,10 +445,10 @@ function Sourcing() {
   ];
   return (
     <section id="sourcing" className="border-b border-border/60 bg-[hsl(0_0%_97%)]/50">
-      <div className="mx-auto max-w-[1400px] px-6 py-16 md:py-28">
-        <div className="grid gap-12 lg:grid-cols-12 mb-12">
+      <div className="mx-auto max-w-[1400px] px-6 py-10 md:py-14">
+        <div className="grid gap-8 lg:grid-cols-12">
           <div className="lg:col-span-5">
-            <div className="mb-4 font-mono text-xs uppercase tracking-widest text-primary">
+            <div className="mb-3 font-mono text-xs uppercase tracking-widest text-primary">
               The sourcing layer
             </div>
             <h2 className="font-heading text-3xl font-bold leading-tight tracking-tight md:text-4xl lg:text-5xl">
@@ -453,24 +456,21 @@ function Sourcing() {
               <br />
               You speak <span className="text-primary">Instagram.</span>
             </h2>
-            <p className="mt-6 max-w-md text-muted-foreground leading-relaxed">
+            <p className="mt-4 max-w-md text-muted-foreground leading-relaxed">
               Our team lives on the ground in Guangzhou, Yiwu and Shenzhen. We scout what&apos;s about to trend, negotiate importer pricing, verify the factory, and land the SKU in Pakistan — so you can order it like a normal e-commerce product.
             </p>
           </div>
           <div className="lg:col-span-7">
             <ol className="grid gap-px bg-border sm:grid-cols-2">
               {items.map(({ icon: Icon, t, d }) => (
-                <li key={t} className="bg-[hsl(0_0%_98%)] p-8">
+                <li key={t} className="bg-[hsl(0_0%_98%)] p-5">
                   <Icon className="h-6 w-6 text-primary" />
-                  <div className="mt-6 font-heading text-xl font-bold">{t}</div>
+                  <div className="mt-3 font-heading text-xl font-bold">{t}</div>
                   <p className="mt-2 text-sm text-muted-foreground">{d}</p>
                 </li>
               ))}
             </ol>
           </div>
-        </div>
-        <div className="rounded-2xl overflow-hidden shadow-lg">
-          <img src="/localbaba-shipment-map.png" alt="LocalBaba Shipment Map" className="w-full h-auto object-cover" />
         </div>
       </div>
     </section>
@@ -665,18 +665,6 @@ function CTA() {
               Register free
               <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </Link>
-          </div>
-        </div>
-      </div>
-      <div className="bg-primary text-primary-foreground">
-        <div className="flex gap-8 overflow-hidden py-3 font-mono text-xs font-bold uppercase tracking-widest">
-          <div className="animate-marquee flex shrink-0 gap-8 whitespace-nowrap pl-8">
-            {[...marquee, ...marquee].map((m, i) => (
-              <span key={i} className="flex items-center gap-8">
-                {m}
-                <span aria-hidden>◆</span>
-              </span>
-            ))}
           </div>
         </div>
       </div>

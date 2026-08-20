@@ -21,17 +21,33 @@ def _map_row(row: dict) -> dict:
     }
 
 
+# Fields the home screen's announcement ticker actually renders (title,
+# body) or reads client-side (target_cities, for the city-match filter) —
+# id/status/sort_order/created_at/updated_at are admin-panel-only concerns.
+_LEAN_COLUMNS = "title, body, target_cities"
+
+
+def _map_row_lean(row: dict) -> dict:
+    return {
+        "title": row.get("title") or "",
+        "body": row.get("body"),
+        "targetCities": row.get("target_cities") or [],
+    }
+
+
 @blasts_bp.get("")
 @require_auth
 def list_blasts():
     db = get_admin_client()
-    query = db.table("blasts").select("*")
+    lean = request.args.get("fields") == "lean" and not is_admin(g.user)
+    query = db.table("blasts").select(_LEAN_COLUMNS if lean else "*")
     if is_admin(g.user):
         query = query.order("created_at", desc=True)
     else:
         query = query.eq("status", "published").order("sort_order", desc=True).order("created_at", desc=True)
     res = query.execute()
-    return jsonify(success=True, blasts=[_map_row(r) for r in (res.data or [])])
+    mapper = _map_row_lean if lean else _map_row
+    return jsonify(success=True, blasts=[mapper(r) for r in (res.data or [])])
 
 
 @blasts_bp.post("")

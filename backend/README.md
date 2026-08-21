@@ -4,7 +4,7 @@ Flask API shared by the web app (Next.js) and the reseller mobile app. Talks
 to Supabase using the service-role key, so it — not individual clients — is
 the single place authorization rules live.
 
-## Structure
+## Structuree
 
 ```
 app/

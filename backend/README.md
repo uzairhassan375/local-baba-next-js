@@ -58,7 +58,8 @@ Response envelope: `{"success": true, ...}` or `{"success": false, "error": "...
 ## Endpoints
 
 ### Health
-- `GET /api/health` — public.
+- `GET /health` — public.
+- `GET /api/health` — public (same response).
 
 ### Shopify integration (`app/api/shopify/`)
 Per-member row in the `shopify_integrations` table — no shared/global state.

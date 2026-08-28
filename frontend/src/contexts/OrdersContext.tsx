@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { orders as initialMockOrders, type Order } from "@/data/mockData";
+import { type Order } from "@/data/mockData";
 import { createOrder as apiCreateOrder, updateOrder as apiUpdateOrder, fetchOrders } from "@/lib/api/ordersApi";
 
 export interface ManualInvoice {
@@ -77,29 +77,21 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         if (dbOrders.length > 0) {
           setOrders(dbOrders);
         } else {
-          // Fallback: try localStorage, then mock data
+          // Fallback: try localStorage
           try {
             const saved = localStorage.getItem("localbaba_member_orders");
-            if (saved) {
-              setOrders(JSON.parse(saved));
-            } else {
-              setOrders(initialMockOrders);
-            }
+            setOrders(saved ? JSON.parse(saved) : []);
           } catch {
-            setOrders(initialMockOrders);
+            setOrders([]);
           }
         }
       } catch (err) {
         console.warn("Backend order fetch failed, using local fallback:", err);
         try {
           const saved = localStorage.getItem("localbaba_member_orders");
-          if (saved) {
-            setOrders(JSON.parse(saved));
-          } else {
-            setOrders(initialMockOrders);
-          }
+          setOrders(saved ? JSON.parse(saved) : []);
         } catch {
-          setOrders(initialMockOrders);
+          setOrders([]);
         }
       } finally {
         setIsLoadingOrders(false);

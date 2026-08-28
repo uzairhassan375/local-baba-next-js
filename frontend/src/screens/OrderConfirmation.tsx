@@ -6,13 +6,13 @@ import { useOrders } from "@/contexts/OrdersContext";
 
 export default function OrderConfirmationPage() {
   const params = useParams();
-  const id = typeof params?.id === "string" ? params.id : "LB-2847";
+  const id = typeof params?.id === "string" ? params.id : "";
   const { getOrderById } = useOrders();
   const order = getOrderById(id);
   const [copied, setCopied] = useState(false);
 
   const orderId = order?.id || id;
-  const totalAmount = order?.total ? order.total.toLocaleString() : "28,400";
+  const totalAmount = order?.total ? order.total.toLocaleString() : "0";
   const formattedDate = order?.createdAt
     ? new Date(order.createdAt).toLocaleString(undefined, {
         day: "numeric",

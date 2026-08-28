@@ -2,7 +2,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { ProductMedia } from "@/components/ProductMedia";
-import { orders as mockOrders } from "@/data/mockData";
 import { useOrders } from "@/contexts/OrdersContext";
 
 const statusColors: Record<string, string> = {
@@ -22,7 +21,7 @@ export default function OrderDetailPage() {
   const params = useParams();
   const id = typeof params?.id === "string" ? params.id : undefined;
   const { getOrderById } = useOrders();
-  const order = id ? (getOrderById(id) || mockOrders.find(o => o.id === id)) : undefined;
+  const order = id ? getOrderById(id) : undefined;
 
   const handlePrintInvoice = () => {
     window.print();

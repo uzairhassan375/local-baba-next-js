@@ -5,14 +5,13 @@ import { useParams } from "next/navigation";
 import { Copy, Check, ExternalLink } from "lucide-react";
 import { useState } from "react";
 
-import { orders as mockOrders } from "@/data/mockData";
 import { useOrders } from "@/contexts/OrdersContext";
 
 export default function TrackOrderDetailPage() {
   const params = useParams();
   const id = typeof params?.id === "string" ? params.id : undefined;
   const { getOrderById } = useOrders();
-  const order = id ? (getOrderById(id) || mockOrders.find(o => o.id === id)) : undefined;
+  const order = id ? getOrderById(id) : undefined;
   const [copied, setCopied] = useState(false);
 
   const handleCopy = (text: string) => {
